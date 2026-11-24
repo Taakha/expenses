@@ -5,7 +5,6 @@ import '../features/accounts/accounts_screen.dart';
 import '../features/authentication/screens/auth_screens.dart';
 import '../features/budgets/budgets_screen.dart';
 import '../features/categories/categories_screen.dart';
-import '../features/dashboard/dashboard_screen.dart';
 import '../features/debts/debts_screen.dart';
 import '../features/notifications/notifications_screen.dart';
 import '../features/profile/profile_screen.dart';
@@ -81,7 +80,9 @@ class AppRoutes {
         final transaction = settings.arguments;
         page = transaction is FinancialTransaction
             ? TransactionDetailsScreen(transaction: transaction)
-            : const _InvalidRoutePage(message: 'Transaction details need a transaction.');
+            : const _InvalidRoutePage(
+                message: 'Transaction details need a transaction.',
+              );
         break;
       case RouteNames.budgets:
         page = const BudgetsScreen();
@@ -131,7 +132,6 @@ class AppRoutes {
       settings: settings,
     );
   }
-
 }
 
 class _InvalidRoutePage extends StatelessWidget {

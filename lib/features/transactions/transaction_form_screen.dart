@@ -79,8 +79,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     super.didChangeDependencies();
     if (_loadedDefaults) return;
     final accounts = context.read<FinanceController>().activeAccounts;
-    if (_accountId == null && accounts.isNotEmpty)
+    if (_accountId == null && accounts.isNotEmpty) {
       _accountId = accounts.first.id;
+    }
     if (_destinationAccountId == null && accounts.length > 1) {
       _destinationAccountId = accounts
           .firstWhere((item) => item.id != _accountId)

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../app/routes/route_names.dart';
 import '../../core/services/finance_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/money.dart';
@@ -94,15 +93,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           final path = await context
                               .read<FinanceController>()
                               .exportTransactionsCsv(items);
-                          if (context.mounted)
+                          if (context.mounted) {
                             showAppMessage(context, 'CSV exported to $path');
+                          }
                         } catch (error) {
-                          if (context.mounted)
+                          if (context.mounted) {
                             showAppMessage(
                               context,
                               'Export failed: $error',
                               isError: true,
                             );
+                          }
                         }
                       },
                 icon: const Icon(Icons.file_download_outlined),

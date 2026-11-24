@@ -1,9 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/routes.dart';
 import '../../app/routes/route_names.dart';
 import '../../core/services/finance_controller.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/utils/money.dart';
 import '../../core/widgets/feedback.dart';
 import '../../core/widgets/glass_container.dart';
@@ -28,7 +30,6 @@ class TransactionDetailsScreen extends StatelessWidget {
     final isIncoming =
         transaction.type == TransactionType.income ||
         transaction.type == TransactionType.refund;
-    final amountColor = isIncoming ? AppColors.income : AppColors.expense;
     return GlassScaffold(
       padding: const EdgeInsets.symmetric(horizontal: 17),
       child: ListView(
@@ -63,8 +64,9 @@ class TransactionDetailsScreen extends StatelessWidget {
                       Navigator.pop(context);
                     }
                   } catch (error) {
-                    if (context.mounted)
+                    if (context.mounted) {
                       showAppMessage(context, error.toString(), isError: true);
+                    }
                   }
                 }
               },
@@ -183,9 +185,10 @@ class TransactionDetailsScreen extends StatelessWidget {
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: Image.asset(
-                transaction.receiptPath!,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              child: Image.file(
+                File(transaction.receiptPath!),
+                errorBuilder: (context, error, stackTrace) =>
+                    const SizedBox.shrink(),
               ),
             ),
           ],

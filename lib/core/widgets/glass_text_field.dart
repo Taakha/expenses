@@ -13,6 +13,9 @@ class GlassTextField extends StatelessWidget {
     this.maxLines = 1,
     this.enabled = true,
     this.onChanged,
+    this.initialValue,
+    this.readOnly = false,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   final String label;
@@ -25,13 +28,19 @@ class GlassTextField extends StatelessWidget {
   final int maxLines;
   final bool enabled;
   final ValueChanged<String>? onChanged;
+  final String? initialValue;
+  final bool readOnly;
+  final TextCapitalization textCapitalization;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      initialValue: initialValue,
       enabled: enabled,
+      readOnly: readOnly,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
       obscureText: obscureText,
       maxLines: obscureText ? 1 : maxLines,
       validator: validator,

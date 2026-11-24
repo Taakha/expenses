@@ -66,7 +66,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final page = _pages[_index];
     return GlassScaffold(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -620,16 +619,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ? null
                           : () async {
                               setState(() => _busy = true);
+                              final auth = context.read<AuthService>();
                               try {
-                                await context
-                                    .read<AuthService>()
-                                    .signInWithGoogle();
-                                if (mounted) {
+                                await auth.signInWithGoogle();
+                                if (context.mounted) {
                                   Navigator.of(context)
                                       .popUntil((route) => route.isFirst);
                                 }
                               } catch (error) {
-                                if (mounted) {
+                                if (context.mounted) {
                                   showAppMessage(
                                     context,
                                     'Google sign-in failed: $error',

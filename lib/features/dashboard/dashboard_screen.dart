@@ -512,8 +512,9 @@ class _MonthlyChart extends StatelessWidget {
                       reservedSize: 20,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= 6)
+                        if (index < 0 || index >= 6) {
                           return const SizedBox.shrink();
+                        }
                         final month = DateTime(
                           now.year,
                           now.month - (5 - index),

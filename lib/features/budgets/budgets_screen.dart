@@ -531,12 +531,13 @@ Future<void> _editBudget(
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
                 if (context.mounted) showAppMessage(context, 'Budget saved.');
               } catch (error) {
-                if (dialogContext.mounted)
+                if (dialogContext.mounted) {
                   showAppMessage(
                     dialogContext,
                     error.toString(),
                     isError: true,
                   );
+                }
               }
             },
             child: Text(existing == null ? 'Create budget' : 'Save changes'),
@@ -561,8 +562,9 @@ Future<void> _deleteBudget(BuildContext context, FinancialBudget budget) async {
     await context.read<FinanceController>().deleteBudget(budget.id);
     if (context.mounted) showAppMessage(context, 'Budget archived.');
   } catch (error) {
-    if (context.mounted)
+    if (context.mounted) {
       showAppMessage(context, error.toString(), isError: true);
+    }
   }
 }
 

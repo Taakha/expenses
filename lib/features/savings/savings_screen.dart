@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/routes/route_names.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/services/finance_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/money.dart';
@@ -36,7 +37,8 @@ class SavingsScreen extends StatelessWidget {
             subtitle: 'Small steps add up to big things.',
             trailing: IconButton.filled(
               tooltip: 'Add savings goal',
-              onPressed: () => Navigator.pushNamed(context, RouteNames.savingsGoalAdd),
+              onPressed: () =>
+                  Navigator.pushNamed(context, RouteNames.savingsGoalAdd),
               icon: const Icon(Icons.add_rounded),
             ),
           ),
@@ -50,14 +52,23 @@ class SavingsScreen extends StatelessWidget {
                   blur: 7,
                   child: Row(
                     children: [
-                      const Icon(Icons.savings_outlined, color: AppColors.tealDark),
+                      const Icon(
+                        Icons.savings_outlined,
+                        color: AppColors.tealDark,
+                      ),
                       const SizedBox(width: 11),
                       Expanded(
-                        child: Text('Total savings · ${entry.key}', style: Theme.of(context).textTheme.titleMedium),
+                        child: Text(
+                          'Total savings · ${entry.key}',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
                       Text(
                         formatMinorUnits(entry.value, entry.key),
-                        style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.tealDark),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.tealDark,
+                        ),
                       ),
                     ],
                   ),
@@ -72,7 +83,8 @@ class SavingsScreen extends StatelessWidget {
               action: GlassButton(
                 label: 'Add goal',
                 icon: Icons.add,
-                onPressed: () => Navigator.pushNamed(context, RouteNames.savingsGoalAdd),
+                onPressed: () =>
+                    Navigator.pushNamed(context, RouteNames.savingsGoalAdd),
               ),
             )
           else
@@ -120,7 +132,9 @@ class _GoalCard extends StatelessWidget {
     final ratio = goal.targetMinor <= 0
         ? 0.0
         : (savedMinor / goal.targetMinor).clamp(0, 1).toDouble();
-    final percent = goal.targetMinor <= 0 ? 0 : savedMinor * 100 ~/ goal.targetMinor;
+    final percent = goal.targetMinor <= 0
+        ? 0
+        : savedMinor * 100 ~/ goal.targetMinor;
     final completed = savedMinor >= goal.targetMinor;
     return Padding(
       padding: const EdgeInsets.only(bottom: 11),
@@ -153,10 +167,15 @@ class _GoalCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(goal.name, style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        goal.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 2),
                       Text(
-                        completed ? 'Goal reached!' : 'Target ${_date(goal.targetDate)}',
+                        completed
+                            ? 'Goal reached!'
+                            : 'Target ${_date(goal.targetDate)}',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -178,7 +197,10 @@ class _GoalCard extends StatelessWidget {
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(goal.description, style: Theme.of(context).textTheme.bodyMedium),
+                child: Text(
+                  goal.description,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ),
             ],
             const SizedBox(height: 13),
@@ -191,9 +213,18 @@ class _GoalCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                Text('of ${formatMinorUnits(goal.targetMinor, goal.currencyCode)}', style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  'of ${formatMinorUnits(goal.targetMinor, goal.currencyCode)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 const SizedBox(width: 6),
-                Text('$percent%', style: const TextStyle(color: AppColors.tealDark, fontWeight: FontWeight.w800)),
+                Text(
+                  '$percent%',
+                  style: const TextStyle(
+                    color: AppColors.tealDark,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -257,7 +288,9 @@ class _SavingsGoalFormScreenState extends State<SavingsGoalFormScreen> {
     final goal = widget.existing;
     _name = TextEditingController(text: goal?.name ?? '');
     _target = TextEditingController(
-      text: goal == null ? '' : _moneyInput(goal.targetMinor, goal.currencyCode),
+      text: goal == null
+          ? ''
+          : _moneyInput(goal.targetMinor, goal.currencyCode),
     );
     _description = TextEditingController(text: goal?.description ?? '');
     _currency = goal?.currencyCode ?? 'UGX';
@@ -310,7 +343,9 @@ class _SavingsGoalFormScreenState extends State<SavingsGoalFormScreen> {
         padding: const EdgeInsets.only(top: 8, bottom: 25),
         children: [
           ScreenHeader(
-            title: widget.existing == null ? 'Create savings goal' : 'Edit savings goal',
+            title: widget.existing == null
+                ? 'Create savings goal'
+                : 'Edit savings goal',
             subtitle: 'Choose a target and a date that works for you.',
             showBack: true,
           ),
@@ -330,17 +365,29 @@ class _SavingsGoalFormScreenState extends State<SavingsGoalFormScreen> {
                         color: AppColors.teal.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(25),
                       ),
-                      child: const Icon(Icons.track_changes_rounded, color: AppColors.teal, size: 40),
+                      child: const Icon(
+                        Icons.track_changes_rounded,
+                        color: AppColors.teal,
+                        size: 40,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  GlassTextField(controller: _name, label: 'Goal name', icon: Icons.flag_outlined, validator: (value) => Validators.required(value, 'Goal name')),
+                  GlassTextField(
+                    controller: _name,
+                    label: 'Goal name',
+                    icon: Icons.flag_outlined,
+                    validator: (value) =>
+                        Validators.required(value, 'Goal name'),
+                  ),
                   const SizedBox(height: 11),
                   GlassTextField(
                     controller: _target,
                     label: 'Target amount ($_currency)',
                     icon: Icons.payments_outlined,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     validator: (value) {
                       try {
                         parseMinorUnits(value ?? '', _currency);
@@ -354,29 +401,46 @@ class _SavingsGoalFormScreenState extends State<SavingsGoalFormScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: _currency,
                     decoration: const InputDecoration(labelText: 'Currency'),
-                    items: AppConstants.supportedCurrencies.keys.map((code) => DropdownMenuItem(value: code, child: Text(code))).toList(),
-                    onChanged: (value) => setState(() => _currency = value ?? _currency),
+                    items: AppConstants.supportedCurrencies.keys
+                        .map(
+                          (code) =>
+                              DropdownMenuItem(value: code, child: Text(code)),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _currency = value ?? _currency),
                   ),
                   const SizedBox(height: 11),
-                  GlassTextField(controller: _description, label: 'Goal description (optional)', icon: Icons.notes_outlined, maxLines: 2),
+                  GlassTextField(
+                    controller: _description,
+                    label: 'Goal description (optional)',
+                    icon: Icons.notes_outlined,
+                    maxLines: 2,
+                  ),
                   const SizedBox(height: 6),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.event_outlined),
                     title: const Text('Target date'),
-                    subtitle: Text(MaterialLocalizations.of(context).formatMediumDate(_date)),
+                    subtitle: Text(
+                      MaterialLocalizations.of(context).formatMediumDate(_date),
+                    ),
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
                         initialDate: _date,
                         firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 3650)),
+                        lastDate: DateTime.now().add(
+                          const Duration(days: 3650),
+                        ),
                       );
                       if (date != null) setState(() => _date = date);
                     },
                   ),
                   GlassButton(
-                    label: widget.existing == null ? 'Create Goal' : 'Save changes',
+                    label: widget.existing == null
+                        ? 'Create Goal'
+                        : 'Save changes',
                     onPressed: _busy ? null : _save,
                     isLoading: _busy,
                   ),
@@ -424,13 +488,17 @@ Future<void> _showContribution(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Current savings: ${formatMinorUnits(finance.savingsTotal(goal), goal.currencyCode)}'),
+            Text(
+              'Current savings: ${formatMinorUnits(finance.savingsTotal(goal), goal.currencyCode)}',
+            ),
             const SizedBox(height: 12),
             GlassTextField(
               controller: controller,
               label: 'Amount (${goal.currencyCode})',
               icon: Icons.payments_outlined,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: (value) {
                 try {
                   parseMinorUnits(value ?? '', goal.currencyCode);
@@ -444,21 +512,36 @@ Future<void> _showContribution(
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           onPressed: () async {
             if (!formKey.currentState!.validate()) return;
             try {
               await finance.contribute(
                 goalId: goal.id,
-                amountMinor: parseMinorUnits(controller.text, goal.currencyCode),
+                amountMinor: parseMinorUnits(
+                  controller.text,
+                  goal.currencyCode,
+                ),
                 currencyCode: goal.currencyCode,
                 withdrawal: withdrawal,
               );
               if (dialogContext.mounted) Navigator.pop(dialogContext);
-              if (context.mounted) showAppMessage(context, withdrawal ? 'Withdrawal recorded.' : 'Savings contribution recorded.');
+              if (context.mounted) {
+                showAppMessage(
+                  context,
+                  withdrawal
+                      ? 'Withdrawal recorded.'
+                      : 'Savings contribution recorded.',
+                );
+              }
             } catch (error) {
-              if (dialogContext.mounted) showAppMessage(dialogContext, error.toString(), isError: true);
+              if (dialogContext.mounted) {
+                showAppMessage(dialogContext, error.toString(), isError: true);
+              }
             }
           },
           child: Text(withdrawal ? 'Withdraw' : 'Add savings'),
@@ -479,9 +562,13 @@ Future<void> _pauseGoal(BuildContext context, SavingsGoal goal) async {
   if (!confirmed || !context.mounted) return;
   try {
     await context.read<FinanceController>().pauseGoal(goal.id);
-    if (context.mounted) showAppMessage(context, 'Goal paused.');
+    if (context.mounted) {
+      showAppMessage(context, 'Goal paused.');
+    }
   } catch (error) {
-    if (context.mounted) showAppMessage(context, error.toString(), isError: true);
+    if (context.mounted) {
+      showAppMessage(context, error.toString(), isError: true);
+    }
   }
 }
 
@@ -492,5 +579,7 @@ String _moneyInput(int minor, String currency) {
   final multiplier = scale == 0 ? 1 : 100;
   final whole = minor ~/ multiplier;
   final fraction = minor % multiplier;
-  return scale == 0 ? '$whole' : '$whole.${fraction.toString().padLeft(scale, '0')}';
+  return scale == 0
+      ? '$whole'
+      : '$whole.${fraction.toString().padLeft(scale, '0')}';
 }

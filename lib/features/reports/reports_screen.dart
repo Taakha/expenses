@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/services/finance_controller.dart';
+import '../../core/services/financial_calculation_service.dart';
 import '../../core/services/report_export_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/money.dart';
@@ -53,7 +54,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         CategorySpendingItem(
           category: item.category,
           amountMinor: item.amountMinor,
-          sharePercent: categoryTotal == 0 ? 0 : item.amountMinor * 100 ~/ categoryTotal,
+          sharePercent: categoryTotal == 0
+              ? 0
+              : item.amountMinor * 100 ~/ categoryTotal,
         ),
     ];
     final reportTransactions =
@@ -93,7 +96,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     DropdownMenuItem(value: 6, child: Text('Last 6 months')),
                     DropdownMenuItem(value: 12, child: Text('Last 12 months')),
                   ],
-                  onChanged: (value) => setState(() => _months = value ?? _months),
+                  onChanged: (value) =>
+                      setState(() => _months = value ?? _months),
                 ),
               ),
               const SizedBox(width: 8),
@@ -104,7 +108,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       : finance.preferredCurrency,
                   decoration: const InputDecoration(labelText: 'Currency'),
                   items: visibleCurrencies
-                      .map((code) => DropdownMenuItem(value: code, child: Text(code)))
+                      .map(
+                        (code) =>
+                            DropdownMenuItem(value: code, child: Text(code)),
+                      )
                       .toList(),
                   onChanged: (value) => setState(() => _currency = value),
                 ),
@@ -142,13 +149,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
             blur: 7,
             child: Row(
               children: [
-                const Icon(Icons.account_balance_wallet_outlined, color: AppColors.tealDark),
+                const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: AppColors.tealDark,
+                ),
                 const SizedBox(width: 9),
-                Expanded(child: Text('Net cash flow · ${income - expenses < 0 ? 'negative' : 'positive'}', style: Theme.of(context).textTheme.titleMedium)),
+                Expanded(
+                  child: Text(
+                    'Net cash flow · ${income - expenses < 0 ? 'negative' : 'positive'}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
                 Text(
                   formatMinorUnits(income - expenses, currency),
                   style: TextStyle(
-                    color: income - expenses < 0 ? AppColors.expense : AppColors.income,
+                    color: income - expenses < 0
+                        ? AppColors.expense
+                        : AppColors.income,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -164,8 +181,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 const Icon(Icons.savings_outlined, color: AppColors.tealDark),
                 const SizedBox(width: 9),
-                Expanded(child: Text('Current account balance', style: Theme.of(context).textTheme.titleMedium)),
-                Text(formatMinorUnits(balance, currency), style: const TextStyle(fontWeight: FontWeight.w800)),
+                Expanded(
+                  child: Text(
+                    'Current account balance',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Text(
+                  formatMinorUnits(balance, currency),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
               ],
             ),
           ),
@@ -177,7 +202,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
             currency: currency,
           ),
           const SizedBox(height: 10),
-          _CategoryReport(categories: categories, currency: currency, total: categoryTotal),
+          _CategoryReport(
+            categories: categories,
+            currency: currency,
+            total: categoryTotal,
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -187,10 +216,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   icon: Icons.table_view_outlined,
                   onPressed: _exporting
                       ? null
-                      : () => _exportCsv(
-                            reportTransactions,
-                            finance.accounts,
-                          ),
+                      : () => _exportCsv(reportTransactions, finance.accounts),
                   isLoading: _exporting,
                 ),
               ),
@@ -202,15 +228,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   onPressed: _exporting
                       ? null
                       : () => _exportPdf(
-                            currency,
-                            income,
-                            expenses,
-                            balance,
-                            categoryItems,
-                            reportTransactions,
-                            from,
-                            through,
-                          ),
+                          currency,
+                          income,
+                          expenses,
+                          balance,
+                          categoryItems,
+                          reportTransactions,
+                          from,
+                          through,
+                        ),
                   isLoading: _exporting,
                 ),
               ),
@@ -237,13 +263,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
   ) async {
     setState(() => _exporting = true);
     try {
-      final path = await _exports.saveTransactionsCsv(
-        transactions,
-        {for (final account in accounts) account.id: account.name},
-      );
+      final path = await _exports.saveTransactionsCsv(transactions, {
+        for (final account in accounts) account.id: account.name,
+      });
       if (mounted) showAppMessage(context, 'CSV saved to $path');
     } catch (error) {
-      if (mounted) showAppMessage(context, 'Could not export CSV: $error', isError: true);
+      if (mounted) {
+        showAppMessage(context, 'Could not export CSV: $error', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -271,7 +298,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
         transactions: transactions,
       );
     } catch (error) {
-      if (mounted) showAppMessage(context, 'Could not create PDF report: $error', isError: true);
+      if (mounted) {
+        showAppMessage(
+          context,
+          'Could not create PDF report: $error',
+          isError: true,
+        );
+      }
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -315,7 +348,8 @@ class _ReportMetric extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               formatMinorUnits(value, currency),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: color),
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(color: color),
             ),
           ),
         ],
@@ -361,7 +395,10 @@ class _MonthlyReportChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Income vs expenses', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Income vs expenses',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 13),
           SizedBox(
             height: 190,
@@ -392,8 +429,12 @@ class _MonthlyReportChart extends StatelessWidget {
                 gridData: const FlGridData(show: true, drawVerticalLine: false),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   leftTitles: const AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
                   ),
@@ -402,7 +443,9 @@ class _MonthlyReportChart extends StatelessWidget {
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= data.length) return const SizedBox.shrink();
+                        if (index < 0 || index >= data.length) {
+                          return const SizedBox.shrink();
+                        }
                         return Padding(
                           padding: const EdgeInsets.only(top: 5),
                           child: Text(
@@ -464,7 +507,10 @@ class _CategoryReport extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Spending by category', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Spending by category',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           if (categories.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 22),
@@ -510,7 +556,10 @@ class _CategoryReport extends StatelessWidget {
                     const Spacer(),
                     Text(
                       formatMinorUnits(item.amountMinor, currency),
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -546,7 +595,19 @@ class _LegendDot extends StatelessWidget {
   }
 }
 
-String _monthLabel(DateTime month) =>
-    const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month.month - 1];
+String _monthLabel(DateTime month) => const [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+][month.month - 1];
 
 String _date(DateTime date) => '${date.day}/${date.month}/${date.year}';

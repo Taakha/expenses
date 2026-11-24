@@ -48,14 +48,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
+    final auth = context.read<AuthService>();
+    final finance = context.read<FinanceController>();
     setState(() => _busy = true);
     try {
-      await context.read<AuthService>().updateProfile(
+      await auth.updateProfile(
         fullName: _name.text.trim(),
         phoneNumber: _phone.text.trim(),
         currencyCode: _currency,
       );
-      await context.read<FinanceController>().setCurrency(_currency);
+      await finance.setCurrency(_currency);
       if (mounted) showAppMessage(context, 'Profile updated.');
     } catch (error) {
       if (mounted) showAppMessage(context, error.toString(), isError: true);
@@ -87,14 +89,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Profile details', style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    'Profile details',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 12),
                   GlassTextField(
                     controller: _name,
                     label: 'Full name',
                     icon: Icons.person_outline_rounded,
                     textCapitalization: TextCapitalization.words,
-                    validator: (value) => Validators.required(value, 'Full name'),
+                    validator: (value) =>
+                        Validators.required(value, 'Full name'),
                   ),
                   const SizedBox(height: 10),
                   GlassTextField(
@@ -112,17 +118,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: AppConstants.supportedCurrencies.containsKey(_currency)
+                    initialValue:
+                        AppConstants.supportedCurrencies.containsKey(_currency)
                         ? _currency
                         : 'UGX',
-                    decoration: const InputDecoration(labelText: 'Preferred currency'),
+                    decoration: const InputDecoration(
+                      labelText: 'Preferred currency',
+                    ),
                     items: AppConstants.supportedCurrencies.entries
-                        .map((entry) => DropdownMenuItem(
-                              value: entry.key,
-                              child: Text('${entry.key} · ${entry.value}'),
-                            ))
+                        .map(
+                          (entry) => DropdownMenuItem(
+                            value: entry.key,
+                            child: Text('${entry.key} · ${entry.value}'),
+                          ),
+                        )
                         .toList(),
-                    onChanged: (value) => setState(() => _currency = value ?? _currency),
+                    onChanged: (value) =>
+                        setState(() => _currency = value ?? _currency),
                   ),
                   const SizedBox(height: 13),
                   GlassButton(
@@ -142,15 +154,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Appearance', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Appearance',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 9),
                 DropdownButtonFormField<AppThemeMode>(
                   initialValue: theme.mode,
                   decoration: const InputDecoration(labelText: 'Theme'),
                   items: const [
-                    DropdownMenuItem(value: AppThemeMode.system, child: Text('Use device setting')),
-                    DropdownMenuItem(value: AppThemeMode.light, child: Text('Light')),
-                    DropdownMenuItem(value: AppThemeMode.dark, child: Text('Dark')),
+                    DropdownMenuItem(
+                      value: AppThemeMode.system,
+                      child: Text('Use device setting'),
+                    ),
+                    DropdownMenuItem(
+                      value: AppThemeMode.light,
+                      child: Text('Light'),
+                    ),
+                    DropdownMenuItem(
+                      value: AppThemeMode.dark,
+                      child: Text('Dark'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) theme.setMode(value);
@@ -159,13 +183,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 15),
                 Row(
                   children: [
-                    const Icon(Icons.cloud_sync_outlined, color: AppColors.tealDark),
+                    const Icon(
+                      Icons.cloud_sync_outlined,
+                      color: AppColors.tealDark,
+                    ),
                     const SizedBox(width: 9),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Cloud synchronization', style: Theme.of(context).textTheme.titleMedium),
+                          Text(
+                            'Cloud synchronization',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
                           Text(
                             '${finance.syncState.name} · ${finance.pendingSyncCount} pending',
                             style: Theme.of(context).textTheme.bodySmall,
@@ -181,7 +211,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
                 if (finance.syncError != null)
-                  Text(finance.syncError!, style: const TextStyle(color: AppColors.expense, fontSize: 11)),
+                  Text(
+                    finance.syncError!,
+                    style: const TextStyle(
+                      color: AppColors.expense,
+                      fontSize: 11,
+                    ),
+                  ),
               ],
             ),
           ),
