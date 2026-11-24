@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_icons.dart';
 import '../theme/app_colors.dart';
 
 class AppLogo extends StatelessWidget {
@@ -23,17 +24,14 @@ class AppLogo extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: AppColors.teal.withValues(alpha: 0.24),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Icon(
-        Icons.account_balance_wallet_rounded,
-        color: Colors.white,
-        size: size * 0.49,
-      ),
+      child: Icon(AppIcons.logo, color: Colors.white, size: size * 0.49),
     );
+
     if (!showName) return mark;
     return Column(
       mainAxisSize: MainAxisSize.min,
