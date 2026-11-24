@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+final _maxSqliteInteger = BigInt.parse('9223372036854775807');
+
 int currencyFractionDigits(String currencyCode) {
   return switch (currencyCode.toUpperCase()) {
     'UGX' || 'KES' || 'TZS' || 'JPY' => 0,
@@ -40,7 +42,7 @@ int parseMinorUnits(
   final minor = whole == null
       ? null
       : whole * BigInt.from(multiplier) + BigInt.from(fraction);
-  if (minor == null || minor > BigInt.from(0x7fffffffffffffff)) {
+  if (minor == null || minor > _maxSqliteInteger) {
     throw const FormatException('Amount is too large.');
   }
   if (allowZero ? minor < BigInt.zero : minor <= BigInt.zero) {
