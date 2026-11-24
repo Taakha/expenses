@@ -25,8 +25,7 @@ class DashboardScreen extends StatelessWidget {
     final user = context.read<AuthService>().currentUser;
     final name = user?.displayName?.trim().split(' ').first ?? 'there';
     final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month);
-    final monthSummary = finance.summaryFor(from: monthStart, through: now);
+    final monthSummary = finance.currentMonthSummary;
     final currency = finance.preferredCurrency;
     final income = monthSummary.incomeByCurrency[currency] ?? 0;
     final expenses = monthSummary.expensesByCurrency[currency] ?? 0;
@@ -175,7 +174,6 @@ class DashboardScreen extends StatelessWidget {
         ),
         _MonthlyChart(
           finance: finance,
-          transactions: finance.transactions,
           currency: currency,
         ),
         const SizedBox(height: 17),
@@ -225,7 +223,7 @@ class DashboardScreen extends StatelessWidget {
             ),
           ],
         ),
-        if (finance.transactions.isEmpty)
+        if (finance.recentTransactions.isEmpty)
           GlassEmptyState(
             title: 'A fresh start',
             message: 'Add your first income or expense to see your activity.',
@@ -237,8 +235,7 @@ class DashboardScreen extends StatelessWidget {
             ),
           )
         else
-          ...finance.transactions
-              .take(4)
+          ...finance.recentTransactions
               .map(
                 (transaction) => TransactionTile(
                   transaction: transaction,
@@ -449,12 +446,10 @@ class _QuickAction extends StatelessWidget {
 class _MonthlyChart extends StatelessWidget {
   const _MonthlyChart({
     required this.finance,
-    required this.transactions,
     required this.currency,
   });
 
   final FinanceController finance;
-  final List<FinancialTransaction> transactions;
   final String currency;
 
   @override
@@ -463,14 +458,12 @@ class _MonthlyChart extends StatelessWidget {
     final values = <({int income, int expense})>[];
     for (var offset = 5; offset >= 0; offset--) {
       final month = DateTime(now.year, now.month - offset);
-      final range = finance.summarizeTransactions(
-        transactions,
-        from: month,
-        through: DateTime(month.year, month.month + 1, 0, 23, 59, 59, 999),
-      );
+      final key =
+          '${month.year.toString().padLeft(4, '0')}-${month.month.toString().padLeft(2, '0')}';
+      final range = finance.monthlySummaries[key];
       values.add((
-        income: range.incomeByCurrency[currency] ?? 0,
-        expense: range.expensesByCurrency[currency] ?? 0,
+        income: range?.incomeByCurrency[currency] ?? 0,
+        expense: range?.expensesByCurrency[currency] ?? 0,
       ));
     }
     final maxValue = values.fold<int>(

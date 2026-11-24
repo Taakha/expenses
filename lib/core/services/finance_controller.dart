@@ -42,8 +42,8 @@ class FinanceController extends ChangeNotifier {
       snapshot?.accounts ?? const <FinancialAccount>[];
   List<FinancialAccount> get activeAccounts =>
       accounts.where((account) => !account.isArchived).toList();
-  List<FinancialTransaction> get transactions =>
-      snapshot?.transactions ?? const <FinancialTransaction>[];
+  List<FinancialTransaction> get recentTransactions =>
+      snapshot?.recentTransactions ?? const <FinancialTransaction>[];
   List<FinancialBudget> get budgets =>
       snapshot?.budgets ?? const <FinancialBudget>[];
   List<SavingsGoal> get goals => snapshot?.goals ?? const <SavingsGoal>[];
@@ -58,15 +58,22 @@ class FinanceController extends ChangeNotifier {
       snapshot?.categories ?? const <Map<String, Object?>>[];
 
   FinancialSummary get summary =>
-      _calculations.summarize(accounts: accounts, transactions: transactions);
-
-  FinancialSummary summaryFor({DateTime? from, DateTime? through}) =>
-      _calculations.summarize(
-        accounts: accounts,
-        transactions: transactions,
-        from: from,
-        through: through,
+      snapshot?.summary ??
+      const FinancialSummary(
+        incomeByCurrency: {},
+        expensesByCurrency: {},
+        balanceByCurrency: {},
       );
+
+  FinancialSummary get currentMonthSummary =>
+      snapshot?.currentMonthSummary ??
+      const FinancialSummary(
+        incomeByCurrency: {},
+        expensesByCurrency: {},
+        balanceByCurrency: {},
+      );
+  Map<String, FinancialSummary> get monthlySummaries =>
+      snapshot?.monthlySummaries ?? const {};
 
   FinancialSummary summarizeTransactions(
     List<FinancialTransaction> transactions, {
@@ -79,22 +86,86 @@ class FinanceController extends ChangeNotifier {
     through: through,
   );
 
-  List<CategorySpending> categorySpending({
+  Future<FinancialSummary> summaryFor({
+    DateTime? from,
+    DateTime? through,
+    String? search,
+    String? accountId,
+    String? category,
+    String? type,
+  }) => _repository.loadSummary(
+    uid: _requireUid(),
+    from: from,
+    through: through,
+    search: search,
+    accountId: accountId,
+    category: category,
+    type: type,
+  );
+
+  Future<List<CategorySpending>> categorySpending({
     required String currencyCode,
     DateTime? from,
     DateTime? through,
-  }) => _calculations.categorySpending(
-    transactions,
+  }) => _repository.loadCategorySpending(
+    uid: _requireUid(),
     currencyCode: currencyCode,
     from: from,
     through: through,
   );
 
   int accountBalance(FinancialAccount account) =>
-      _calculations.accountBalance(account, transactions);
+      snapshot?.accountBalances[account.id] ?? account.openingBalanceMinor;
 
   BudgetProgress budgetProgress(FinancialBudget budget) =>
-      _calculations.budgetProgress(budget: budget, transactions: transactions);
+      snapshot?.budgetProgress[budget.id] ??
+      const BudgetProgress(spentMinor: 0, remainingMinor: 0, usagePercent: 0);
+
+  Future<TransactionPage> loadTransactionPage({
+    int pageSize = 50,
+    int? beforeDate,
+    String? beforeId,
+    String? search,
+    String? accountId,
+    String? category,
+    String? type,
+    String? currencyCode,
+    DateTime? from,
+    DateTime? through,
+    bool ascending = false,
+  }) => _repository.loadTransactionPage(
+    uid: _requireUid(),
+    pageSize: pageSize,
+    beforeDate: beforeDate,
+    beforeId: beforeId,
+    search: search,
+    accountId: accountId,
+    category: category,
+    type: type,
+    currencyCode: currencyCode,
+    from: from,
+    through: through,
+    ascending: ascending,
+  );
+
+  Stream<FinancialTransaction> streamTransactions({
+    String? search,
+    String? accountId,
+    String? category,
+    String? type,
+    String? currencyCode,
+    DateTime? from,
+    DateTime? through,
+  }) => _repository.streamTransactions(
+    uid: _requireUid(),
+    search: search,
+    accountId: accountId,
+    category: category,
+    type: type,
+    currencyCode: currencyCode,
+    from: from,
+    through: through,
+  );
 
   int savingsTotal(SavingsGoal goal) =>
       _calculations.savingsTotal(goal.id, contributions);
@@ -104,11 +175,26 @@ class FinanceController extends ChangeNotifier {
     snapshot?.debtPayments ?? const <DebtPayment>[],
   );
 
-  Future<String> exportTransactionsCsv(
-    List<FinancialTransaction> transactions,
-  ) => const ReportExportService().saveTransactionsCsv(transactions, {
-    for (final account in accounts) account.id: account.name,
-  });
+  Future<String> exportTransactionsCsv({
+    String? search,
+    String? accountId,
+    String? category,
+    String? type,
+    String? currencyCode,
+    DateTime? from,
+    DateTime? through,
+  }) => const ReportExportService().saveTransactionsCsv(
+    streamTransactions(
+      search: search,
+      accountId: accountId,
+      category: category,
+      type: type,
+      currencyCode: currencyCode,
+      from: from,
+      through: through,
+    ),
+    {for (final account in accounts) account.id: account.name},
+  );
 
   Future<void> initialize({
     required String uid,

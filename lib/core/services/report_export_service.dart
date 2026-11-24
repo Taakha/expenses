@@ -15,43 +15,59 @@ class ReportExportService {
   const ReportExportService();
 
   Future<String> saveTransactionsCsv(
-    List<FinancialTransaction> transactions,
+    Stream<FinancialTransaction> transactions,
     Map<String, String> accountNames,
   ) async {
-    final rows = <List<dynamic>>[
-      [
-        'Date',
-        'Type',
-        'Description',
-        'Category',
-        'Account',
-        'Currency',
-        'Amount in minor units',
-        'Display amount',
-        'Payment method',
-        'Notes',
-      ],
-      for (final entry in transactions)
-        [
-          entry.occurredAt.toIso8601String(),
-          entry.type.name,
-          entry.description,
-          entry.category,
-          accountNames[entry.accountId] ?? entry.accountId,
-          entry.currencyCode,
-          entry.amountMinor,
-          formatMinorUnits(entry.amountMinor, entry.currencyCode),
-          entry.paymentMethod,
-          entry.notes,
-        ],
-    ];
-    final csv = CsvEncoder(addBom: true).convert(rows);
     final directory = await _exportDirectory();
     final filename =
         'moneywise_transactions_${DateTime.now().millisecondsSinceEpoch}.csv';
     final file = File(path.join(directory.path, filename));
-    await file.writeAsString(csv, flush: true);
-    return file.path;
+    final sink = file.openWrite();
+    final encoder = CsvEncoder(addBom: false);
+    try {
+      sink.write('\uFEFF');
+      sink.write(
+        encoder.convert([
+          [
+            'Date',
+            'Type',
+            'Description',
+            'Category',
+            'Account',
+            'Currency',
+            'Amount in minor units',
+            'Display amount',
+            'Payment method',
+            'Notes',
+          ],
+        ]),
+      );
+      await for (final entry in transactions) {
+        sink.write(
+          encoder.convert([
+            [
+              entry.occurredAt.toIso8601String(),
+              entry.type.name,
+              entry.description,
+              entry.category,
+              accountNames[entry.accountId] ?? entry.accountId,
+              entry.currencyCode,
+              entry.amountMinor,
+              formatMinorUnits(entry.amountMinor, entry.currencyCode),
+              entry.paymentMethod,
+              entry.notes,
+            ],
+          ]),
+        );
+      }
+      await sink.flush();
+      await sink.close();
+      return file.path;
+    } on Object {
+      await sink.close();
+      if (await file.exists()) await file.delete();
+      rethrow;
+    }
   }
 
   Future<void> shareReportPdf({

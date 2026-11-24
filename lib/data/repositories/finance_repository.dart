@@ -16,6 +16,9 @@ class FinanceException implements Exception {
   String toString() => message;
 }
 
+static String _monthKey(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}';
+
 class FinanceSnapshot {
   const FinanceSnapshot({
     required this.accounts,
@@ -27,6 +30,12 @@ class FinanceSnapshot {
     required this.recurringRules,
     required this.notifications,
     required this.categories,
+    required this.recentTransactions,
+    required this.summary,
+    required this.currentMonthSummary,
+    required this.monthlySummaries,
+    required this.accountBalances,
+    required this.budgetProgress,
   });
 
   final List<FinancialAccount> accounts;
@@ -38,6 +47,12 @@ class FinanceSnapshot {
   final List<RecurringRule> recurringRules;
   final List<AppNotification> notifications;
   final List<Map<String, Object?>> categories;
+  final List<FinancialTransaction> recentTransactions;
+  final FinancialSummary summary;
+  final FinancialSummary currentMonthSummary;
+  final Map<String, FinancialSummary> monthlySummaries;
+  final Map<String, int> accountBalances;
+  final Map<String, BudgetProgress> budgetProgress;
 }
 
 class TransactionPage {
@@ -191,6 +206,36 @@ class FinanceRepository {
       whereArgs: [uid],
       orderBy: 'type, name COLLATE NOCASE',
     );
+    final recentTransactions = await db.query(
+      'transactions',
+      where: 'user_id = ? AND status = ?',
+      whereArgs: [uid, 'active'],
+      orderBy: 'transaction_date DESC, id DESC',
+      limit: 4,
+    );
+    final accountBalances = await loadAccountBalances(uid);
+    final historicalSummary = await loadSummary(uid: uid);
+    final now = DateTime.now();
+    final currentMonthSummary = await loadSummary(
+      uid: uid,
+      from: DateTime(now.year, now.month),
+      through: now,
+    );
+    final monthlySummaries = await loadMonthlySummaries(uid: uid);
+    final budgetProgress = <String, BudgetProgress>{};
+    for (final budget in budgets.map(FinancialBudget.fromMap)) {
+      budgetProgress[budget.id] = await loadBudgetProgress(budget);
+    }
+    final balancesByCurrency = <String, int>{};
+    for (final accountRow in accounts) {
+      final account = FinancialAccount.fromMap(accountRow);
+      if (account.isArchived) continue;
+      balancesByCurrency.update(
+        account.currencyCode,
+        (value) => value + (accountBalances[account.id] ?? 0),
+        ifAbsent: () => accountBalances[account.id] ?? 0,
+      );
+    }
     return FinanceSnapshot(
       accounts: accounts.map(FinancialAccount.fromMap).toList(),
       budgets: budgets.map(FinancialBudget.fromMap).toList(),
@@ -201,6 +246,18 @@ class FinanceRepository {
       recurringRules: recurring.map(RecurringRule.fromMap).toList(),
       notifications: notifications.map(AppNotification.fromMap).toList(),
       categories: categories,
+      recentTransactions: recentTransactions
+          .map(FinancialTransaction.fromMap)
+          .toList(),
+      summary: FinancialSummary(
+        incomeByCurrency: historicalSummary.incomeByCurrency,
+        expensesByCurrency: historicalSummary.expensesByCurrency,
+        balanceByCurrency: balancesByCurrency,
+      ),
+      currentMonthSummary: currentMonthSummary,
+      monthlySummaries: monthlySummaries,
+      accountBalances: accountBalances,
+      budgetProgress: budgetProgress,
     );
   }
 
@@ -216,6 +273,7 @@ class FinanceRepository {
     String? currencyCode,
     DateTime? from,
     DateTime? through,
+    bool ascending = false,
   }) async {
     if (pageSize <= 0) {
       throw ArgumentError.value(pageSize, 'pageSize', 'Must be greater than zero.');
@@ -231,7 +289,9 @@ class FinanceRepository {
       where.add('category = ?');
       whereArgs.add(category);
     }
-    if (type != null) {
+    if (type == 'expense') {
+      where.add("type IN ('expense', 'refund')");
+    } else if (type != null) {
       where.add('type = ?');
       whereArgs.add(type);
     }
@@ -256,7 +316,10 @@ class FinanceRepository {
       whereArgs.addAll([pattern, pattern, pattern]);
     }
     if (beforeDate != null && beforeId != null) {
-      where.add('(transaction_date < ? OR (transaction_date = ? AND id < ?))');
+      final operator = ascending ? '>' : '<';
+      where.add(
+        '(transaction_date $operator ? OR (transaction_date = ? AND id $operator ?))',
+      );
       whereArgs.addAll([beforeDate, beforeDate, beforeId]);
     }
 
@@ -265,7 +328,8 @@ class FinanceRepository {
       'transactions',
       where: where.join(' AND '),
       whereArgs: whereArgs,
-      orderBy: 'transaction_date DESC, id DESC',
+      orderBy:
+          'transaction_date ${ascending ? 'ASC' : 'DESC'}, id ${ascending ? 'ASC' : 'DESC'}',
       limit: pageSize + 1,
     );
     final hasMore = rows.length > pageSize;
@@ -318,6 +382,10 @@ class FinanceRepository {
     required String uid,
     DateTime? from,
     DateTime? through,
+    String? search,
+    String? accountId,
+    String? category,
+    String? type,
   }) async {
     final where = <String>['user_id = ?', 'status = ?'];
     final whereArgs = <Object?>[uid, 'active'];
@@ -328,6 +396,28 @@ class FinanceRepository {
     if (through != null) {
       where.add('transaction_date <= ?');
       whereArgs.add(through.millisecondsSinceEpoch);
+    }
+    if (accountId != null) {
+      where.add('account_id = ?');
+      whereArgs.add(accountId);
+    }
+    if (category != null) {
+      where.add('category = ?');
+      whereArgs.add(category);
+    }
+    if (type == 'expense') {
+      where.add("type IN ('expense', 'refund')");
+    } else if (type != null) {
+      where.add('type = ?');
+      whereArgs.add(type);
+    }
+    final normalizedSearch = search?.trim();
+    if (normalizedSearch != null && normalizedSearch.isNotEmpty) {
+      where.add(
+        '(description LIKE ? OR category LIKE ? OR notes LIKE ?)',
+      );
+      final pattern = '%$normalizedSearch%';
+      whereArgs.addAll([pattern, pattern, pattern]);
     }
     final db = await _database.database;
     final rows = await db.rawQuery(
@@ -357,6 +447,72 @@ class FinanceRepository {
       expensesByCurrency: expenses,
       balanceByCurrency: const {},
     );
+  }
+
+  Future<Map<String, FinancialSummary>> loadMonthlySummaries({
+    required String uid,
+    int monthCount = 6,
+  }) async {
+    if (monthCount <= 0) {
+      throw ArgumentError.value(monthCount, 'monthCount', 'Must be greater than zero.');
+    }
+    final now = DateTime.now();
+    final firstMonth = DateTime(now.year, now.month - monthCount + 1);
+    final db = await _database.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT strftime(
+          '%Y-%m',
+          transaction_date / 1000,
+          'unixepoch',
+          'localtime'
+        ) AS month,
+        currency_code,
+        SUM(CASE WHEN type = 'income' THEN amount_minor ELSE 0 END) AS income_minor,
+        SUM(CASE
+          WHEN type = 'expense' THEN amount_minor
+          WHEN type = 'refund' THEN -amount_minor
+          ELSE 0
+        END) AS expenses_minor
+      FROM transactions
+      WHERE user_id = ? AND status = ?
+        AND transaction_date >= ? AND transaction_date <= ?
+      GROUP BY month, currency_code
+      ''',
+      [
+        uid,
+        'active',
+        firstMonth.millisecondsSinceEpoch,
+        now.millisecondsSinceEpoch,
+      ],
+    );
+    final incomeByMonth = <String, Map<String, int>>{};
+    final expensesByMonth = <String, Map<String, int>>{};
+    for (final row in rows) {
+      final month = row['month']! as String;
+      final currency = row['currency_code']! as String;
+      incomeByMonth.putIfAbsent(month, () => {})[currency] =
+          row['income_minor']! as int;
+      expensesByMonth.putIfAbsent(month, () => {})[currency] =
+          row['expenses_minor']! as int;
+    }
+    return {
+      for (var index = 0; index < monthCount; index++)
+        _monthKey(DateTime(firstMonth.year, firstMonth.month + index)):
+            FinancialSummary(
+              incomeByCurrency:
+                  incomeByMonth[_monthKey(
+                    DateTime(firstMonth.year, firstMonth.month + index),
+                  )] ??
+                  const {},
+              expensesByCurrency:
+                  expensesByMonth[_monthKey(
+                    DateTime(firstMonth.year, firstMonth.month + index),
+                  )] ??
+                  const {},
+              balanceByCurrency: const {},
+            ),
+    };
   }
 
   Future<Map<String, int>> loadAccountBalances(String uid) async {
@@ -395,21 +551,57 @@ class FinanceRepository {
     };
   }
 
+  Future<int> _accountBalance(
+    DatabaseExecutor db,
+    FinancialAccount account, {
+    String? excludedTransactionId,
+  }) async {
+    final excludedSource = excludedTransactionId == null
+        ? ''
+        : ' AND id != ?';
+    final excludedDestination = excludedTransactionId == null
+        ? ''
+        : ' AND id != ?';
+    final args = <Object?>[
+      account.userId,
+      account.id,
+      if (excludedTransactionId != null) excludedTransactionId,
+      account.userId,
+      account.id,
+      if (excludedTransactionId != null) excludedTransactionId,
+    ];
+    final rows = await db.rawQuery(
+      '''
+      SELECT ? +
+        COALESCE((
+          SELECT SUM(CASE
+            WHEN type IN ('income', 'refund', 'adjustment') THEN amount_minor
+            WHEN type IN ('expense', 'transfer') THEN -amount_minor
+            ELSE 0
+          END)
+          FROM transactions
+          WHERE user_id = ? AND account_id = ? AND status = 'active'$excludedSource
+        ), 0)
+        + COALESCE((
+          SELECT SUM(COALESCE(destination_amount_minor, amount_minor))
+          FROM transactions
+          WHERE user_id = ? AND destination_account_id = ?
+            AND type = 'transfer' AND status = 'active'$excludedDestination
+        ), 0) AS balance_minor
+      ''',
+      [account.openingBalanceMinor, ...args],
+    );
+    return rows.first['balance_minor']! as int;
+  }
+
   Future<BudgetProgress> loadBudgetProgress(
     FinancialBudget budget,
   ) async {
     final db = await _database.database;
-    final args = <Object?>[
-      budget.userId,
-      budget.currencyCode,
-      budget.startDate.millisecondsSinceEpoch,
-      budget.endDate.millisecondsSinceEpoch,
-    ];
     var categoryClause = '';
     if (budget.categoryIds.isNotEmpty) {
       categoryClause =
           ' AND category IN (${List.filled(budget.categoryIds.length, '?').join(', ')})';
-      args.addAll(budget.categoryIds);
     }
     final rows = await db.rawQuery(
       '''
@@ -558,16 +750,6 @@ class FinanceRepository {
         'Transaction currency must match the selected account currency.',
       );
     }
-    final previousRows = await db.query(
-      'transactions',
-      where: 'user_id = ? AND status = ?',
-      whereArgs: [entry.userId, 'active'],
-    );
-    final previousEntries = previousRows
-        .map(FinancialTransaction.fromMap)
-        .where((item) => item.id != entry.id)
-        .toList();
-
     if (entry.type == TransactionType.transfer) {
       final destination = accountById[entry.destinationAccountId];
       if (destination == null ||
@@ -602,7 +784,11 @@ class FinanceRepository {
     if (!account.allowOverdraft &&
         (entry.type == TransactionType.expense ||
             entry.type == TransactionType.transfer)) {
-      final available = _calculations.accountBalance(account, previousEntries);
+      final available = await _accountBalance(
+        db,
+        account,
+        excludedTransactionId: entry.id,
+      );
       if (entry.amountMinor > available) {
         throw const FinanceException(
           'This transaction exceeds the available account balance. Enable overdraft for this account if appropriate.',
@@ -879,15 +1065,7 @@ class FinanceRepository {
         );
       }
       if (debt.type == 'borrowed' && !account.allowOverdraft) {
-        final transactionRows = await db.query(
-          'transactions',
-          where: 'user_id = ? AND status = ?',
-          whereArgs: [uid, 'active'],
-        );
-        final entries = transactionRows
-            .map(FinancialTransaction.fromMap)
-            .toList();
-        if (amountMinor > _calculations.accountBalance(account, entries)) {
+        if (amountMinor > await _accountBalance(db, account)) {
           throw const FinanceException(
             'Payment exceeds the available account balance.',
           );

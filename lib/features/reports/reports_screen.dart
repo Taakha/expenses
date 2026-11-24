@@ -28,6 +28,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String? _currency;
   bool _exporting = false;
   final _exports = const ReportExportService();
+  String? _reportKey;
+  Future<_ReportData>? _reportFuture;
 
   @override
   Widget build(BuildContext context) {
@@ -36,46 +38,51 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final now = DateTime.now();
     final from = DateTime(now.year, now.month - _months + 1);
     final through = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
-    final summary = finance.summaryFor(from: from, through: through);
-    final income = summary.incomeByCurrency[currency] ?? 0;
-    final expenses = summary.expensesByCurrency[currency] ?? 0;
-    final balance = finance.summary.balanceByCurrency[currency] ?? 0;
-    final categories = finance.categorySpending(
-      currencyCode: currency,
-      from: from,
-      through: through,
-    );
-    final categoryTotal = categories.fold<int>(
-      0,
-      (total, item) => total + item.amountMinor,
-    );
-    final categoryItems = [
-      for (final item in categories)
-        CategorySpendingItem(
-          category: item.category,
-          amountMinor: item.amountMinor,
-          sharePercent: categoryTotal == 0
-              ? 0
-              : item.amountMinor * 100 ~/ categoryTotal,
-        ),
-    ];
-    final reportTransactions =
-        finance.transactions
-            .where(
-              (transaction) =>
-                  transaction.status == 'active' &&
-                  transaction.currencyCode == currency &&
-                  !transaction.occurredAt.isBefore(from) &&
-                  !transaction.occurredAt.isAfter(through),
-            )
-            .toList()
-          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final reportKey =
+        '$_months|$currency|${identityHashCode(finance.snapshot)}';
+    if (_reportKey != reportKey) {
+      _reportKey = reportKey;
+      _reportFuture = _loadReport(finance, currency, from, through);
+    }
     final visibleCurrencies = {
       ...finance.accounts.map((account) => account.currencyCode),
       finance.preferredCurrency,
     }.toList()..sort();
 
-    return GlassScaffold(
+    return FutureBuilder<_ReportData>(
+      future: _reportFuture,
+      builder: (context, reportState) {
+        if (reportState.hasError) {
+          return GlassScaffold(
+            child: Center(child: Text('Could not load report: ${reportState.error}')),
+          );
+        }
+        if (!reportState.hasData) {
+          return const GlassScaffold(
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final data = reportState.data!;
+        final summary = data.summary;
+        final income = summary.incomeByCurrency[currency] ?? 0;
+        final expenses = summary.expensesByCurrency[currency] ?? 0;
+        final balance = finance.summary.balanceByCurrency[currency] ?? 0;
+        final categories = data.categories;
+        final categoryTotal = categories.fold<int>(
+          0,
+          (total, item) => total + item.amountMinor,
+        );
+        final categoryItems = [
+          for (final item in categories)
+            CategorySpendingItem(
+              category: item.category,
+              amountMinor: item.amountMinor,
+              sharePercent: categoryTotal == 0
+                  ? 0
+                  : item.amountMinor * 100 ~/ categoryTotal,
+            ),
+        ];
+        return GlassScaffold(
       padding: const EdgeInsets.symmetric(horizontal: 17),
       child: ListView(
         padding: const EdgeInsets.only(top: 10, bottom: 28),
@@ -197,7 +204,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
           const SizedBox(height: 12),
           _MonthlyReportChart(
             finance: finance,
-            transactions: finance.transactions,
             months: _months,
             currency: currency,
           ),
@@ -216,7 +222,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   icon: Icons.table_view_outlined,
                   onPressed: _exporting
                       ? null
-                      : () => _exportCsv(reportTransactions, finance.accounts),
+                      : () => _exportCsv(finance, currency, from, through),
                   isLoading: _exporting,
                 ),
               ),
@@ -233,7 +239,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           expenses,
                           balance,
                           categoryItems,
-                          reportTransactions,
+                          finance,
                           from,
                           through,
                         ),
@@ -255,17 +261,41 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ],
       ),
     );
+      },
+    );
+  }
+
+  Future<_ReportData> _loadReport(
+    FinanceController finance,
+    String currency,
+    DateTime from,
+    DateTime through,
+  ) async {
+    final summaryFuture = finance.summaryFor(from: from, through: through);
+    final categoriesFuture = finance.categorySpending(
+      currencyCode: currency,
+      from: from,
+      through: through,
+    );
+    return _ReportData(
+      summary: await summaryFuture,
+      categories: await categoriesFuture,
+    );
   }
 
   Future<void> _exportCsv(
-    List<FinancialTransaction> transactions,
-    List<FinancialAccount> accounts,
+    FinanceController finance,
+    String currency,
+    DateTime from,
+    DateTime through,
   ) async {
     setState(() => _exporting = true);
     try {
-      final path = await _exports.saveTransactionsCsv(transactions, {
-        for (final account in accounts) account.id: account.name,
-      });
+      final path = await finance.exportTransactionsCsv(
+        currencyCode: currency,
+        from: from,
+        through: through,
+      );
       if (mounted) showAppMessage(context, 'CSV saved to $path');
     } catch (error) {
       if (mounted) {
@@ -282,12 +312,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
     int expenses,
     int balance,
     List<CategorySpendingItem> categories,
-    List<FinancialTransaction> transactions,
+    FinanceController finance,
     DateTime from,
     DateTime through,
   ) async {
     setState(() => _exporting = true);
     try {
+      final transactions = await finance
+          .streamTransactions(
+            currencyCode: currency,
+            from: from,
+            through: through,
+          )
+          .toList();
       await _exports.shareReportPdf(
         periodLabel: '${_date(from)} - ${_date(through)}',
         currencyCode: currency,
@@ -361,13 +398,11 @@ class _ReportMetric extends StatelessWidget {
 class _MonthlyReportChart extends StatelessWidget {
   const _MonthlyReportChart({
     required this.finance,
-    required this.transactions,
     required this.months,
     required this.currency,
   });
 
   final FinanceController finance;
-  final List<FinancialTransaction> transactions;
   final int months;
   final String currency;
 
@@ -378,13 +413,11 @@ class _MonthlyReportChart extends StatelessWidget {
     var maxAmount = 0;
     for (var index = months - 1; index >= 0; index--) {
       final month = DateTime(now.year, now.month - index);
-      final summary = finance.summarizeTransactions(
-        transactions,
-        from: month,
-        through: DateTime(month.year, month.month + 1, 0, 23, 59, 59, 999),
-      );
-      final income = summary.incomeByCurrency[currency] ?? 0;
-      final expense = summary.expensesByCurrency[currency] ?? 0;
+      final key =
+          '${month.year.toString().padLeft(4, '0')}-${month.month.toString().padLeft(2, '0')}';
+      final summary = finance.monthlySummaries[key];
+      final income = summary?.incomeByCurrency[currency] ?? 0;
+      final expense = summary?.expensesByCurrency[currency] ?? 0;
       data.add((month: month, income: income, expense: expense));
       maxAmount = math.max(maxAmount, math.max(income, expense));
     }
