@@ -5,6 +5,15 @@ class AppDatabase {
 
   static final AppDatabase instance = AppDatabase._();
 
+  static const _transactionIndexes = [
+    'CREATE INDEX transactions_user_status_date_idx ON transactions(user_id, status, transaction_date DESC, id DESC)',
+    'CREATE INDEX transactions_account_status_date_idx ON transactions(user_id, account_id, status, transaction_date DESC, id DESC)',
+    'CREATE INDEX transactions_type_date_idx ON transactions(user_id, status, type, transaction_date DESC, id DESC)',
+    'CREATE INDEX transactions_category_date_idx ON transactions(user_id, status, category, transaction_date DESC, id DESC)',
+    'CREATE INDEX transactions_destination_idx ON transactions(user_id, destination_account_id, status, transaction_date DESC)',
+    'CREATE INDEX receipts_transaction_idx ON receipts(user_id, transaction_id, created_at)',
+  ];
+
   Database? _database;
 
   Future<Database> get database async {
@@ -13,9 +22,10 @@ class AppDatabase {
     final databasePath = await getDatabasesPath();
     _database = await openDatabase(
       '$databasePath/moneywise.db',
-      version: 1,
+      version: 2,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _createSchema,
+      onUpgrade: _upgradeSchema,
     );
     return _database!;
   }
@@ -94,6 +104,7 @@ class AppDatabase {
     await db.execute(
       'CREATE INDEX transactions_account_date_idx ON transactions(account_id, transaction_date DESC)',
     );
+    await _createTransactionIndexes(db);
     await db.execute('''
       CREATE TABLE budgets (
         id TEXT PRIMARY KEY,
@@ -250,6 +261,7 @@ class AppDatabase {
         FOREIGN KEY(transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
       )
     ''');
+    await db.execute(_transactionIndexes.last);
     await db.execute('''
       CREATE TABLE backup_records (
         id TEXT PRIMARY KEY,
@@ -288,5 +300,16 @@ class AppDatabase {
         UNIQUE(user_id, collection_name, record_id)
       )
     ''');
+  }
+
+  Future<void> _upgradeSchema(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) await _createTransactionIndexes(db);
+  }
+
+  Future<void> _createTransactionIndexes(DatabaseExecutor db) async {
+    for (final statement in _transactionIndexes) {
+      if (statement == _transactionIndexes.last) continue;
+      await db.execute(statement);
+    }
   }
 }

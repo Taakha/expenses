@@ -19,7 +19,6 @@ class FinanceException implements Exception {
 class FinanceSnapshot {
   const FinanceSnapshot({
     required this.accounts,
-    required this.transactions,
     required this.budgets,
     required this.goals,
     required this.contributions,
@@ -31,7 +30,6 @@ class FinanceSnapshot {
   });
 
   final List<FinancialAccount> accounts;
-  final List<FinancialTransaction> transactions;
   final List<FinancialBudget> budgets;
   final List<SavingsGoal> goals;
   final List<SavingsContribution> contributions;
@@ -40,6 +38,16 @@ class FinanceSnapshot {
   final List<RecurringRule> recurringRules;
   final List<AppNotification> notifications;
   final List<Map<String, Object?>> categories;
+}
+
+class TransactionPage {
+  const TransactionPage({
+    required this.transactions,
+    required this.hasMore,
+  });
+
+  final List<FinancialTransaction> transactions;
+  final bool hasMore;
 }
 
 class FinanceRepository {
@@ -134,12 +142,6 @@ class FinanceRepository {
       whereArgs: [uid],
       orderBy: 'is_archived, name COLLATE NOCASE',
     );
-    final transactions = await db.query(
-      'transactions',
-      where: 'user_id = ? AND status = ?',
-      whereArgs: [uid, 'active'],
-      orderBy: 'transaction_date DESC',
-    );
     final budgets = await db.query(
       'budgets',
       where: 'user_id = ? AND is_archived = 0',
@@ -191,7 +193,6 @@ class FinanceRepository {
     );
     return FinanceSnapshot(
       accounts: accounts.map(FinancialAccount.fromMap).toList(),
-      transactions: transactions.map(FinancialTransaction.fromMap).toList(),
       budgets: budgets.map(FinancialBudget.fromMap).toList(),
       goals: goals.map(SavingsGoal.fromMap).toList(),
       contributions: contributions.map(SavingsContribution.fromMap).toList(),
@@ -201,6 +202,293 @@ class FinanceRepository {
       notifications: notifications.map(AppNotification.fromMap).toList(),
       categories: categories,
     );
+  }
+
+  Future<TransactionPage> loadTransactionPage({
+    required String uid,
+    int pageSize = 50,
+    int? beforeDate,
+    String? beforeId,
+    String? search,
+    String? accountId,
+    String? category,
+    String? type,
+    String? currencyCode,
+    DateTime? from,
+    DateTime? through,
+  }) async {
+    if (pageSize <= 0) {
+      throw ArgumentError.value(pageSize, 'pageSize', 'Must be greater than zero.');
+    }
+
+    final where = <String>['user_id = ?', 'status = ?'];
+    final whereArgs = <Object?>[uid, 'active'];
+    if (accountId != null) {
+      where.add('account_id = ?');
+      whereArgs.add(accountId);
+    }
+    if (category != null) {
+      where.add('category = ?');
+      whereArgs.add(category);
+    }
+    if (type != null) {
+      where.add('type = ?');
+      whereArgs.add(type);
+    }
+    if (currencyCode != null) {
+      where.add('currency_code = ?');
+      whereArgs.add(currencyCode);
+    }
+    if (from != null) {
+      where.add('transaction_date >= ?');
+      whereArgs.add(from.millisecondsSinceEpoch);
+    }
+    if (through != null) {
+      where.add('transaction_date <= ?');
+      whereArgs.add(through.millisecondsSinceEpoch);
+    }
+    final normalizedSearch = search?.trim();
+    if (normalizedSearch != null && normalizedSearch.isNotEmpty) {
+      where.add(
+        '(description LIKE ? OR category LIKE ? OR notes LIKE ?)',
+      );
+      final pattern = '%$normalizedSearch%';
+      whereArgs.addAll([pattern, pattern, pattern]);
+    }
+    if (beforeDate != null && beforeId != null) {
+      where.add('(transaction_date < ? OR (transaction_date = ? AND id < ?))');
+      whereArgs.addAll([beforeDate, beforeDate, beforeId]);
+    }
+
+    final db = await _database.database;
+    final rows = await db.query(
+      'transactions',
+      where: where.join(' AND '),
+      whereArgs: whereArgs,
+      orderBy: 'transaction_date DESC, id DESC',
+      limit: pageSize + 1,
+    );
+    final hasMore = rows.length > pageSize;
+    return TransactionPage(
+      transactions: rows
+          .take(pageSize)
+          .map(FinancialTransaction.fromMap)
+          .toList(),
+      hasMore: hasMore,
+    );
+  }
+
+  Stream<FinancialTransaction> streamTransactions({
+    required String uid,
+    String? search,
+    String? accountId,
+    String? category,
+    String? type,
+    String? currencyCode,
+    DateTime? from,
+    DateTime? through,
+  }) async* {
+    int? beforeDate;
+    String? beforeId;
+    while (true) {
+      final page = await loadTransactionPage(
+        uid: uid,
+        pageSize: 500,
+        beforeDate: beforeDate,
+        beforeId: beforeId,
+        search: search,
+        accountId: accountId,
+        category: category,
+        type: type,
+        currencyCode: currencyCode,
+        from: from,
+        through: through,
+      );
+      for (final transaction in page.transactions) {
+        yield transaction;
+      }
+      if (!page.hasMore || page.transactions.isEmpty) return;
+      final last = page.transactions.last;
+      beforeDate = last.occurredAt.millisecondsSinceEpoch;
+      beforeId = last.id;
+    }
+  }
+
+  Future<FinancialSummary> loadSummary({
+    required String uid,
+    DateTime? from,
+    DateTime? through,
+  }) async {
+    final where = <String>['user_id = ?', 'status = ?'];
+    final whereArgs = <Object?>[uid, 'active'];
+    if (from != null) {
+      where.add('transaction_date >= ?');
+      whereArgs.add(from.millisecondsSinceEpoch);
+    }
+    if (through != null) {
+      where.add('transaction_date <= ?');
+      whereArgs.add(through.millisecondsSinceEpoch);
+    }
+    final db = await _database.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT currency_code,
+        SUM(CASE WHEN type = 'income' THEN amount_minor ELSE 0 END) AS income_minor,
+        SUM(CASE
+          WHEN type = 'expense' THEN amount_minor
+          WHEN type = 'refund' THEN -amount_minor
+          ELSE 0
+        END) AS expenses_minor
+      FROM transactions
+      WHERE ${where.join(' AND ')}
+      GROUP BY currency_code
+      ''',
+      whereArgs,
+    );
+    final income = <String, int>{};
+    final expenses = <String, int>{};
+    for (final row in rows) {
+      final currency = row['currency_code']! as String;
+      income[currency] = row['income_minor']! as int;
+      expenses[currency] = row['expenses_minor']! as int;
+    }
+    return FinancialSummary(
+      incomeByCurrency: income,
+      expensesByCurrency: expenses,
+      balanceByCurrency: const {},
+    );
+  }
+
+  Future<Map<String, int>> loadAccountBalances(String uid) async {
+    final db = await _database.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT a.id,
+        a.opening_balance_minor
+        + COALESCE((
+          SELECT SUM(CASE
+            WHEN t.type IN ('income', 'refund', 'adjustment') THEN t.amount_minor
+            WHEN t.type IN ('expense', 'transfer') THEN -t.amount_minor
+            ELSE 0
+          END)
+          FROM transactions t
+          WHERE t.user_id = a.user_id
+            AND t.account_id = a.id
+            AND t.status = 'active'
+        ), 0)
+        + COALESCE((
+          SELECT SUM(COALESCE(t.destination_amount_minor, t.amount_minor))
+          FROM transactions t
+          WHERE t.user_id = a.user_id
+            AND t.destination_account_id = a.id
+            AND t.type = 'transfer'
+            AND t.status = 'active'
+        ), 0) AS balance_minor
+      FROM accounts a
+      WHERE a.user_id = ?
+      ''',
+      [uid],
+    );
+    return {
+      for (final row in rows)
+        row['id']! as String: row['balance_minor']! as int,
+    };
+  }
+
+  Future<BudgetProgress> loadBudgetProgress(
+    FinancialBudget budget,
+  ) async {
+    final db = await _database.database;
+    final args = <Object?>[
+      budget.userId,
+      budget.currencyCode,
+      budget.startDate.millisecondsSinceEpoch,
+      budget.endDate.millisecondsSinceEpoch,
+    ];
+    var categoryClause = '';
+    if (budget.categoryIds.isNotEmpty) {
+      categoryClause =
+          ' AND category IN (${List.filled(budget.categoryIds.length, '?').join(', ')})';
+      args.addAll(budget.categoryIds);
+    }
+    final rows = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(CASE
+        WHEN type = 'expense' THEN amount_minor
+        WHEN type = 'refund' THEN -amount_minor
+        ELSE 0
+      END), 0) AS spent_minor
+      FROM transactions
+      WHERE user_id = ? AND status = ? AND currency_code = ?
+        AND transaction_date >= ? AND transaction_date <= ?
+        AND type IN ('expense', 'refund')$categoryClause
+      ''',
+      [
+        budget.userId,
+        'active',
+        budget.currencyCode,
+        budget.startDate.millisecondsSinceEpoch,
+        budget.endDate.millisecondsSinceEpoch,
+        ...budget.categoryIds,
+      ],
+    );
+    var spent = rows.first['spent_minor']! as int;
+    if (spent < 0) spent = 0;
+    final usage = budget.limitMinor <= 0
+        ? 0
+        : spent * 100 ~/ budget.limitMinor;
+    return BudgetProgress(
+      spentMinor: spent,
+      remainingMinor: budget.limitMinor - spent,
+      usagePercent: usage,
+    );
+  }
+
+  Future<List<CategorySpending>> loadCategorySpending({
+    required String uid,
+    required String currencyCode,
+    DateTime? from,
+    DateTime? through,
+  }) async {
+    final where = <String>[
+      'user_id = ?',
+      'status = ?',
+      'currency_code = ?',
+      "type IN ('expense', 'refund')",
+    ];
+    final args = <Object?>[uid, 'active', currencyCode];
+    if (from != null) {
+      where.add('transaction_date >= ?');
+      args.add(from.millisecondsSinceEpoch);
+    }
+    if (through != null) {
+      where.add('transaction_date <= ?');
+      args.add(through.millisecondsSinceEpoch);
+    }
+    final db = await _database.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT category, SUM(CASE
+        WHEN type = 'expense' THEN amount_minor
+        WHEN type = 'refund' THEN -amount_minor
+        ELSE 0
+      END) AS amount_minor
+      FROM transactions
+      WHERE ${where.join(' AND ')}
+      GROUP BY category
+      HAVING amount_minor > 0
+      ORDER BY amount_minor DESC
+      ''',
+      args,
+    );
+    return [
+      for (final row in rows)
+        CategorySpending(
+          category: row['category']! as String,
+          currencyCode: currencyCode,
+          amountMinor: row['amount_minor']! as int,
+        ),
+    ];
   }
 
   Future<void> saveAccount(FinancialAccount account) async {
