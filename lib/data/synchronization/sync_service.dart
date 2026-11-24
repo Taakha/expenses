@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import '../local/app_database.dart';
 import '../repositories/finance_repository.dart';
 
 enum SyncState { offline, synchronizing, synced, needsAttention }

@@ -275,11 +275,13 @@ class _LoginScreenState extends State<LoginScreen> {
       await preferences.setBool('moneywise.rememberMe', _remember);
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on FirebaseAuthException catch (error) {
-      if (mounted)
+      if (mounted) {
         showAppMessage(context, _friendlyAuthError(error), isError: true);
+      }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         showAppMessage(context, 'Could not sign in: $error', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -291,11 +293,13 @@ class _LoginScreenState extends State<LoginScreen> {
       await context.read<AuthService>().signInWithGoogle();
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on FirebaseAuthException catch (error) {
-      if (mounted)
+      if (mounted) {
         showAppMessage(context, _friendlyAuthError(error), isError: true);
+      }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         showAppMessage(context, 'Google sign-in failed: $error', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -477,15 +481,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } on FirebaseAuthException catch (error) {
-      if (mounted)
+      if (mounted) {
         showAppMessage(context, _friendlyAuthError(error), isError: true);
+      }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         showAppMessage(
           context,
           'Could not create account: $error',
           isError: true,
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -618,16 +624,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 await context
                                     .read<AuthService>()
                                     .signInWithGoogle();
-                                if (mounted)
+                                if (mounted) {
                                   Navigator.of(context)
                                       .popUntil((route) => route.isFirst);
+                                }
                               } catch (error) {
-                                if (mounted)
+                                if (mounted) {
                                   showAppMessage(
                                     context,
                                     'Google sign-in failed: $error',
                                     isError: true,
                                   );
+                                }
                               } finally {
                                 if (mounted) setState(() => _busy = false);
                               }
@@ -674,15 +682,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       await context.read<AuthService>().sendPasswordReset(_email.text);
       if (mounted) setState(() => _sent = true);
     } on FirebaseAuthException catch (error) {
-      if (mounted)
+      if (mounted) {
         showAppMessage(context, _friendlyAuthError(error), isError: true);
+      }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         showAppMessage(
           context,
           'Could not send reset email: $error',
           isError: true,
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

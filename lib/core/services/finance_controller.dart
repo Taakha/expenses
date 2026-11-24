@@ -13,12 +13,11 @@ class FinanceController extends ChangeNotifier {
     FinanceRepository? repository,
     SyncService? syncService,
     Connectivity? connectivity,
-    FinancialCalculationService calculations =
+    this._calculations =
         const FinancialCalculationService(),
   }) : _repository = repository ?? FinanceRepository(),
        _syncService = syncService ?? SyncService(),
-       _connectivity = connectivity ?? Connectivity(),
-       _calculations = calculations;
+       _connectivity = connectivity ?? Connectivity();
 
   final FinanceRepository _repository;
   final SyncService _syncService;

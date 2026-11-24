@@ -45,10 +45,9 @@ class FinanceSnapshot {
 class FinanceRepository {
   FinanceRepository({
     AppDatabase? database,
-    FinancialCalculationService calculations =
+    this._calculations =
         const FinancialCalculationService(),
-  }) : _database = database ?? AppDatabase.instance,
-       _calculations = calculations;
+  }) : _database = database ?? AppDatabase.instance;
 
   final AppDatabase _database;
   final FinancialCalculationService _calculations;
@@ -452,8 +451,9 @@ class FinanceRepository {
       whereArgs: [contribution.goalId, contribution.userId],
       limit: 1,
     );
-    if (goalRows.isEmpty)
+    if (goalRows.isEmpty) {
       throw const FinanceException('Savings goal was not found.');
+    }
     final goal = SavingsGoal.fromMap(goalRows.first);
     if (goal.currencyCode != contribution.currencyCode) {
       throw const FinanceException(
@@ -555,8 +555,9 @@ class FinanceRepository {
       whereArgs: [debtId, uid],
       limit: 1,
     );
-    if (debtRows.isEmpty)
+    if (debtRows.isEmpty) {
       throw const FinanceException('Debt record was not found.');
+    }
     final debt = DebtRecord.fromMap(debtRows.first);
     final paymentRows = await db.query(
       'debt_payments',
