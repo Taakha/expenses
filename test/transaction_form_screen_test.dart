@@ -44,6 +44,9 @@ void main() {
     await tester.pump();
     await tester.ensureVisible(find.text('Save expense'));
     await tester.tap(find.text('Save expense'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('No matching budget'), findsOneWidget);
+    await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
 
     final saved = finance.savedTransaction;
@@ -54,7 +57,6 @@ void main() {
     expect(saved.accountId, 'cash');
     expect(saved.category, 'Food');
     expect(saved.description, 'Groceries');
-    expect(find.text('No matching budget'), findsOneWidget);
   });
 
   testWidgets('editing preserves the transaction ID and updates its amount', (
@@ -82,6 +84,8 @@ void main() {
     await tester.pump();
     await tester.ensureVisible(find.text('Save changes'));
     await tester.tap(find.text('Save changes'));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
 
     final saved = finance.savedTransaction;
@@ -183,6 +187,13 @@ class _FakeFinanceController extends Fake implements FinanceController {
 
   @override
   List<FinancialAccount> get activeAccounts => accounts;
+
+  @override
+  List<FinancialBudget> get budgets => const [];
+
+  @override
+  BudgetProgress budgetProgress(FinancialBudget budget) =>
+      const BudgetProgress(spentMinor: 0, remainingMinor: 0, usagePercent: 0);
 
   @override
   List<Map<String, Object?>> get categories => const [];
