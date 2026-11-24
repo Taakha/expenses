@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "741195299183",
+    "project_id": "moneywise-collins-2026",
+    "storage_bucket": "moneywise-collins-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:741195299183:android:33bd16e61e89b2b96c509a",
+        "android_client_info": {
+          "package_name": "com.example.moneywise"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0MJ9NLYpIBJCouXw9abTOoqMdD91BDng"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
