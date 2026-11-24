@@ -21,18 +21,35 @@ class BackupService {
     if (!await directory.exists()) await directory.create(recursive: true);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final file = File(path.join(directory.path, 'moneywise_$timestamp.db'));
-    await File(db.path).copy(file.path);
-    await _verifyBackup(file, uid);
-    await db.insert('backup_records', {
-      'id': timestamp.toString(),
-      'user_id': uid,
-      'local_path': file.path,
-      'version': 1,
-      'created_at': timestamp,
-      'verified': 1,
-      'status': 'complete',
-    });
-    return file.path;
+    final receiptBackup = Directory('${file.path}_receipts');
+    try {
+      await File(db.path).copy(file.path);
+      final receipts = Directory(
+        path.join(base.path, 'moneywise', 'receipts'),
+      );
+      if (await receipts.exists()) {
+        await _copyDirectory(receipts, receiptBackup);
+      } else {
+        await receiptBackup.create(recursive: true);
+      }
+      await _verifyBackup(file, uid);
+      await db.insert('backup_records', {
+        'id': timestamp.toString(),
+        'user_id': uid,
+        'local_path': file.path,
+        'version': 1,
+        'created_at': timestamp,
+        'verified': 1,
+        'status': 'complete',
+      });
+      return file.path;
+    } on Object {
+      if (await file.exists()) await file.delete();
+      if (await receiptBackup.exists()) {
+        await receiptBackup.delete(recursive: true);
+      }
+      rethrow;
+    }
   }
 
   Future<List<Map<String, Object?>>> listBackups(String uid) async {
@@ -65,6 +82,14 @@ class BackupService {
     await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
     final databasePath = db.path;
     final safetyPath = '$databasePath.before_restore';
+    final base = await getApplicationDocumentsDirectory();
+    final receiptDirectory = Directory(
+      path.join(base.path, 'moneywise', 'receipts'),
+    );
+    final receiptBackup = Directory('${backupPath}_receipts');
+    final stagedReceipts = Directory('${receiptDirectory.path}.restore');
+    final safetyReceipts = Directory('${receiptDirectory.path}.before_restore');
+    var receiptsReplaced = false;
     await File(databasePath).copy(safetyPath);
     await AppDatabase.instance.close();
     try {
@@ -80,9 +105,36 @@ class BackupService {
       if (userRows.isEmpty) {
         throw StateError('The restored backup does not contain this account.');
       }
+      if (await receiptBackup.exists()) {
+        if (await stagedReceipts.exists()) {
+          await stagedReceipts.delete(recursive: true);
+        }
+        await _copyDirectory(receiptBackup, stagedReceipts);
+        if (await safetyReceipts.exists()) {
+          await safetyReceipts.delete(recursive: true);
+        }
+        if (await receiptDirectory.exists()) {
+          await receiptDirectory.rename(safetyReceipts.path);
+          receiptsReplaced = true;
+        }
+        await stagedReceipts.rename(receiptDirectory.path);
+        receiptsReplaced = true;
+      }
+      if (await safetyReceipts.exists()) {
+        await safetyReceipts.delete(recursive: true);
+      }
     } catch (_) {
       await AppDatabase.instance.close();
       await File(safetyPath).copy(databasePath);
+      if (receiptsReplaced && await receiptDirectory.exists()) {
+        await receiptDirectory.delete(recursive: true);
+      }
+      if (await safetyReceipts.exists()) {
+        await safetyReceipts.rename(receiptDirectory.path);
+      }
+      if (await stagedReceipts.exists()) {
+        await stagedReceipts.delete(recursive: true);
+      }
       rethrow;
     } finally {
       final safetyFile = File(safetyPath);
@@ -113,6 +165,20 @@ class BackupService {
       }
     } finally {
       await backup.close();
+    }
+  }
+
+  Future<void> _copyDirectory(Directory source, Directory destination) async {
+    await destination.create(recursive: true);
+    await for (final entity in source.list(recursive: true)) {
+      final relativePath = path.relative(entity.path, from: source.path);
+      final destinationPath = path.join(destination.path, relativePath);
+      if (entity is Directory) {
+        await Directory(destinationPath).create(recursive: true);
+      } else if (entity is File) {
+        await Directory(path.dirname(destinationPath)).create(recursive: true);
+        await entity.copy(destinationPath);
+      }
     }
   }
 }

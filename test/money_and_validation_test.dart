@@ -17,7 +17,8 @@ void main() {
       expect(() => parseMinorUnits('20.5', 'UGX'), throwsFormatException);
     });
 
-    test('rejects invalid, non-positive and out-of-range amounts', () {
+    test('supports large exact amounts within SQLite integer storage', () {
+      expect(parseMinorUnits('90071992547409.93', 'USD'), 9007199254740993);
       for (final value in ['abc', '-1', '0', '1.2.3']) {
         expect(
           () => parseMinorUnits(value, 'USD'),
@@ -26,7 +27,7 @@ void main() {
         );
       }
       expect(
-        () => parseMinorUnits('90071992547409.92', 'USD'),
+        () => parseMinorUnits('92233720368547758.08', 'USD'),
         throwsFormatException,
       );
       expect(parseMinorUnits('0', 'USD', allowZero: true), 0);

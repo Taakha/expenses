@@ -7,6 +7,10 @@ reports, notifications, and local backups. Changes are saved to the local
 ledger first and queued for Firestore synchronization when a connection is
 available.
 
+Transaction history has no daily, monthly, yearly, or per-account quota. It is
+loaded in indexed pages, while balances and reports are calculated from exact
+minor-unit values in SQLite. Verified local backups include receipt attachments.
+
 ## Firebase setup
 
 1. In Firebase Console, enable **Email/Password** under Authentication providers

@@ -136,7 +136,10 @@ class _FakeFinanceController extends Fake implements FinanceController {
   String? userId = 'user-1';
 
   @override
-  Future<void> saveTransaction(FinancialTransaction transaction) async {
+  Future<void> saveTransaction(
+    FinancialTransaction transaction, {
+    List<ReceiptAttachment> receipts = const [],
+  }) async {
     savedTransaction = transaction;
   }
 }

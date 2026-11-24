@@ -60,7 +60,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.extentAfter < 500) _loadMore();
+    if (_scrollController.hasClients &&
+        _scrollController.position.extentAfter < 500) {
+      _loadMore();
+    }
   }
 
   String? get _typeFilter => switch (_filter) {

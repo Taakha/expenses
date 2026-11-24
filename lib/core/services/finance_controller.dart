@@ -266,10 +266,19 @@ class FinanceController extends ChangeNotifier {
   Future<void> archiveAccount(String id) =>
       _run(() => _repository.archiveAccount(_requireUid(), id));
 
-  Future<void> saveTransaction(FinancialTransaction transaction) async {
-    await _run(() => _repository.saveTransaction(transaction));
+  Future<void> saveTransaction(
+    FinancialTransaction transaction, {
+    List<ReceiptAttachment> receipts = const [],
+  }) async {
+    await _run(
+      () => _repository.saveTransaction(transaction, receipts: receipts),
+    );
     await _createBudgetAlerts();
   }
+
+  Future<List<ReceiptAttachment>> loadTransactionReceipts(
+    String transactionId,
+  ) => _repository.loadTransactionReceipts(_requireUid(), transactionId);
 
   Future<void> deleteTransaction(String id) =>
       _run(() => _repository.voidTransaction(_requireUid(), id));

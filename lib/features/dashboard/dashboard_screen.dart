@@ -24,7 +24,6 @@ class DashboardScreen extends StatelessWidget {
     final finance = context.watch<FinanceController>();
     final user = context.read<AuthService>().currentUser;
     final name = user?.displayName?.trim().split(' ').first ?? 'there';
-    final now = DateTime.now();
     final monthSummary = finance.currentMonthSummary;
     final currency = finance.preferredCurrency;
     final income = monthSummary.incomeByCurrency[currency] ?? 0;

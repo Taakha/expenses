@@ -1,4 +1,10 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -45,6 +51,11 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   bool _busy = false;
   String? _error;
   bool _loadedDefaults = false;
+  final List<_ReceiptDraft> _receipts = [];
+  final Set<String> _newReceiptPaths = {};
+  Set<String> _originalReceiptPaths = {};
+  bool _receiptsLoaded = false;
+  bool _receiptsPersisted = false;
 
   @override
   void initState() {
@@ -72,6 +83,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     _destinationAccountId = existing?.destinationAccountId;
     _category = existing?.category;
     _paymentMethod = existing?.paymentMethod ?? 'Cash';
+    _receiptsLoaded = existing == null;
   }
 
   @override
@@ -88,10 +100,18 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
           .id;
     }
     _loadedDefaults = true;
+    if (widget.existing != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadReceipts());
+    }
   }
 
   @override
   void dispose() {
+    if (!_receiptsPersisted) {
+      for (final receiptPath in _newReceiptPaths) {
+        unawaited(_deleteReceiptFile(receiptPath));
+      }
+    }
     _amount.dispose();
     _description.dispose();
     _notes.dispose();
@@ -100,7 +120,81 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     super.dispose();
   }
 
+  Future<void> _loadReceipts() async {
+    try {
+      final finance = context.read<FinanceController>();
+      final attachments = await finance.loadTransactionReceipts(
+        widget.existing!.id,
+      );
+      final receiptDrafts = attachments
+          .map(
+            (receipt) => _ReceiptDraft(
+              id: receipt.id,
+              localPath: receipt.localPath,
+              mimeType: receipt.mimeType,
+              fileSize: receipt.fileSize,
+              createdAt: receipt.createdAt,
+            ),
+          )
+          .toList();
+      final legacyPath = widget.existing!.receiptPath;
+      if (receiptDrafts.isEmpty && legacyPath != null) {
+        final file = File(legacyPath);
+        if (await file.exists()) {
+          receiptDrafts.add(
+            _ReceiptDraft(
+              id: FinanceRepository.createId(),
+              localPath: legacyPath,
+              mimeType: _receiptMimeType(legacyPath),
+              fileSize: await file.length(),
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _receipts
+          ..clear()
+          ..addAll(receiptDrafts);
+        _originalReceiptPaths = receiptDrafts
+            .map((receipt) => receipt.localPath)
+            .toSet();
+        _receiptsLoaded = true;
+      });
+    } on Object catch (error) {
+      if (mounted) setState(() => _error = 'Could not load receipts: $error');
+    }
+  }
+
+  Future<void> _pickReceipts() async {
+    try {
+      final picked = await ImagePicker().pickMultiImage();
+      if (picked.isEmpty || !mounted) return;
+      final drafts = <_ReceiptDraft>[];
+      for (final image in picked) {
+        final receipt = _ReceiptDraft(
+          id: FinanceRepository.createId(),
+          localPath: image.path,
+          mimeType: _receiptMimeType(image.path),
+          fileSize: await File(image.path).length(),
+          createdAt: DateTime.now(),
+          isNew: true,
+        );
+        drafts.add(receipt);
+      }
+      if (!mounted) return;
+      setState(() => _receipts.addAll(drafts));
+    } on Object catch (error) {
+      if (mounted) setState(() => _error = 'Could not attach receipts: $error');
+    }
+  }
+
   Future<void> _save() async {
+    if (!_receiptsLoaded) {
+      setState(() => _error = 'Wait for existing receipts to finish loading.');
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     final finance = context.read<FinanceController>();
     final account = _findAccount(finance.accounts, _accountId);
@@ -123,8 +217,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     });
     try {
       final now = DateTime.now();
+      final transactionId = widget.existing?.id ?? FinanceRepository.createId();
+      final receiptDrafts = await _persistReceiptDrafts(finance.userId!);
       final transaction = FinancialTransaction(
-        id: widget.existing?.id ?? FinanceRepository.createId(),
+        id: transactionId,
         userId: finance.userId!,
         accountId: account.id,
         type: _type,
@@ -153,6 +249,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             : null,
         paymentMethod: _paymentMethod,
         notes: _notes.text.trim(),
+        receiptPath: receiptDrafts.firstOrNull?.localPath,
         transferId: _type == TransactionType.transfer
             ? widget.existing?.transferId ?? FinanceRepository.createId()
             : null,
@@ -160,7 +257,31 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         createdAt: widget.existing?.createdAt ?? now,
         updatedAt: now,
       );
-      await finance.saveTransaction(transaction);
+      final receipts = [
+        for (final receipt in receiptDrafts)
+          ReceiptAttachment(
+            id: receipt.id,
+            userId: finance.userId!,
+            transactionId: transaction.id,
+            localPath: receipt.localPath,
+            mimeType: receipt.mimeType,
+            fileSize: receipt.fileSize,
+            createdAt: receipt.createdAt,
+          ),
+      ];
+      await finance.saveTransaction(transaction, receipts: receipts);
+      _receiptsPersisted = true;
+      setState(() {
+        _receipts
+          ..clear()
+          ..addAll(receiptDrafts);
+      });
+      for (final receiptPath in _originalReceiptPaths.difference(
+        _receipts.map((receipt) => receipt.localPath).toSet(),
+      )) {
+        final file = File(receiptPath);
+        if (await file.exists()) await file.delete();
+      }
       if (!mounted) return;
       showAppMessage(
         context,
@@ -437,6 +558,72 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _pickDate,
                     ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: _busy || !_receiptsLoaded
+                            ? null
+                            : _pickReceipts,
+                        icon: const Icon(Icons.attach_file_rounded),
+                        label: Text(
+                          _receipts.isEmpty
+                              ? 'Attach receipts'
+                              : 'Receipts (${_receipts.length})',
+                        ),
+                      ),
+                    ),
+                    if (!_receiptsLoaded)
+                      const LinearProgressIndicator(),
+                    if (_receipts.isNotEmpty)
+                      SizedBox(
+                        height: 104,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _receipts.length,
+                          itemBuilder: (context, index) {
+                            final receipt = _receipts[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: SizedBox(
+                                width: 92,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.file(
+                                        File(receipt.localPath),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stack) =>
+                                            const Icon(
+                                              Icons.broken_image_outlined,
+                                            ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 2,
+                                      right: 2,
+                                      child: IconButton.filledTonal(
+                                        tooltip: 'Remove receipt',
+                                        onPressed: _busy
+                                            ? null
+                                            : () => setState(
+                                                () => _receipts.removeAt(index),
+                                              ),
+                                        icon: const Icon(
+                                          Icons.close,
+                                          size: 15,
+                                        ),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     GlassTextField(
                       controller: _notes,
                       label: 'Notes (optional)',
@@ -486,6 +673,73 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     );
     if (picked != null) setState(() => _date = picked);
   }
+
+  Future<List<_ReceiptDraft>> _persistReceiptDrafts(String uid) async {
+    final documents = await getApplicationDocumentsDirectory();
+    final directory = Directory(
+      path.join(documents.path, 'moneywise', 'receipts', uid),
+    );
+    await directory.create(recursive: true);
+    final persisted = <_ReceiptDraft>[];
+    for (final receipt in _receipts) {
+      if (!receipt.isNew) {
+        persisted.add(receipt);
+        continue;
+      }
+      final destinationPath = path.join(
+        directory.path,
+        '${receipt.id}${path.extension(receipt.localPath)}',
+      );
+      final destination = File(destinationPath);
+      _newReceiptPaths.add(destinationPath);
+      if (await destination.exists()) await destination.delete();
+      await File(receipt.localPath).copy(destinationPath);
+      persisted.add(
+        _ReceiptDraft(
+          id: receipt.id,
+          localPath: destinationPath,
+          mimeType: receipt.mimeType,
+          fileSize: await destination.length(),
+          createdAt: receipt.createdAt,
+        ),
+      );
+    }
+    return persisted;
+  }
+
+  static Future<void> _deleteReceiptFile(String receiptPath) async {
+    final file = File(receiptPath);
+    if (await file.exists()) await file.delete();
+  }
+}
+
+class _ReceiptDraft {
+  const _ReceiptDraft({
+    required this.id,
+    required this.localPath,
+    required this.mimeType,
+    required this.fileSize,
+    required this.createdAt,
+    this.isNew = false,
+  });
+
+  final String id;
+  final String localPath;
+  final String mimeType;
+  final int fileSize;
+  final DateTime createdAt;
+  final bool isNew;
+}
+
+String _receiptMimeType(String receiptPath) {
+  return switch (path.extension(receiptPath).toLowerCase()) {
+    '.png' => 'image/png',
+    '.gif' => 'image/gif',
+    '.webp' => 'image/webp',
+    '.heic' => 'image/heic',
+    '.heif' => 'image/heif',
+    _ => 'image/jpeg',
+  };
 }
 
 class _OfflineHint extends StatelessWidget {

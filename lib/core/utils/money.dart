@@ -36,18 +36,19 @@ int parseMinorUnits(
               .padRight(scale, '0'),
         );
   final multiplier = scale == 0 ? 1 : 100;
-  final whole = int.tryParse(wholePart);
-  const maximumExactInteger = 9007199254740991;
-  if (whole == null || whole > (maximumExactInteger - fraction) ~/ multiplier) {
+  final whole = BigInt.tryParse(wholePart);
+  final minor = whole == null
+      ? null
+      : whole * BigInt.from(multiplier) + BigInt.from(fraction);
+  if (minor == null || minor > BigInt.from(0x7fffffffffffffff)) {
     throw const FormatException('Amount is too large.');
   }
-  final minor = whole * multiplier + fraction;
-  if (allowZero ? minor < 0 : minor <= 0) {
+  if (allowZero ? minor < BigInt.zero : minor <= BigInt.zero) {
     throw FormatException(
       allowZero ? 'Amount cannot be negative.' : 'Amount must be greater than zero.',
     );
   }
-  return minor;
+  return minor.toInt();
 }
 
 String formatMinorUnits(int amountMinor, String currencyCode) {

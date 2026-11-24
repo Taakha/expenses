@@ -14,7 +14,6 @@ import '../../core/widgets/glass_button.dart';
 import '../../core/widgets/glass_container.dart';
 import '../../core/widgets/glass_scaffold.dart';
 import '../../core/widgets/screen_header.dart';
-import '../../data/models/finance_models.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -54,7 +53,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
       builder: (context, reportState) {
         if (reportState.hasError) {
           return GlassScaffold(
-            child: Center(child: Text('Could not load report: ${reportState.error}')),
+            child: Center(
+              child: Text('Could not load report: ${reportState.error}'),
+            ),
           );
         }
         if (!reportState.hasData) {
@@ -83,184 +84,198 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
         ];
         return GlassScaffold(
-      padding: const EdgeInsets.symmetric(horizontal: 17),
-      child: ListView(
-        padding: const EdgeInsets.only(top: 10, bottom: 28),
-        children: [
-          const ScreenHeader(
-            title: 'Reports',
-            subtitle: 'Understand where your money goes.',
-          ),
-          Row(
+          padding: const EdgeInsets.symmetric(horizontal: 17),
+          child: ListView(
+            padding: const EdgeInsets.only(top: 10, bottom: 28),
             children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _months,
-                  decoration: const InputDecoration(labelText: 'Period'),
-                  items: const [
-                    DropdownMenuItem(value: 1, child: Text('This month')),
-                    DropdownMenuItem(value: 3, child: Text('Last 3 months')),
-                    DropdownMenuItem(value: 6, child: Text('Last 6 months')),
-                    DropdownMenuItem(value: 12, child: Text('Last 12 months')),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _months = value ?? _months),
-                ),
+              const ScreenHeader(
+                title: 'Reports',
+                subtitle: 'Understand where your money goes.',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: visibleCurrencies.contains(currency)
-                      ? currency
-                      : finance.preferredCurrency,
-                  decoration: const InputDecoration(labelText: 'Currency'),
-                  items: visibleCurrencies
-                      .map(
-                        (code) =>
-                            DropdownMenuItem(value: code, child: Text(code)),
-                      )
-                      .toList(),
-                  onChanged: (value) => setState(() => _currency = value),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _ReportMetric(
-                  label: 'Income',
-                  value: income,
-                  currency: currency,
-                  color: AppColors.income,
-                  icon: Icons.south_west_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ReportMetric(
-                  label: 'Expenses',
-                  value: expenses,
-                  currency: currency,
-                  color: AppColors.expense,
-                  icon: Icons.north_east_rounded,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          GlassContainer(
-            padding: const EdgeInsets.all(14),
-            radius: 17,
-            blur: 7,
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: AppColors.tealDark,
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    'Net cash flow · ${income - expenses < 0 ? 'negative' : 'positive'}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Text(
-                  formatMinorUnits(income - expenses, currency),
-                  style: TextStyle(
-                    color: income - expenses < 0
-                        ? AppColors.expense
-                        : AppColors.income,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          GlassContainer(
-            padding: const EdgeInsets.all(14),
-            radius: 17,
-            blur: 7,
-            child: Row(
-              children: [
-                const Icon(Icons.savings_outlined, color: AppColors.tealDark),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    'Current account balance',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Text(
-                  formatMinorUnits(balance, currency),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _MonthlyReportChart(
-            finance: finance,
-            months: _months,
-            currency: currency,
-          ),
-          const SizedBox(height: 10),
-          _CategoryReport(
-            categories: categories,
-            currency: currency,
-            total: categoryTotal,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: GlassButton(
-                  label: 'Export CSV',
-                  icon: Icons.table_view_outlined,
-                  onPressed: _exporting
-                      ? null
-                      : () => _exportCsv(finance, currency, from, through),
-                  isLoading: _exporting,
-                ),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: GlassButton(
-                  label: 'Share PDF',
-                  icon: Icons.picture_as_pdf_outlined,
-                  onPressed: _exporting
-                      ? null
-                      : () => _exportPdf(
-                          currency,
-                          income,
-                          expenses,
-                          balance,
-                          categoryItems,
-                          finance,
-                          from,
-                          through,
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _months,
+                      decoration: const InputDecoration(labelText: 'Period'),
+                      items: const [
+                        DropdownMenuItem(value: 1, child: Text('This month')),
+                        DropdownMenuItem(
+                          value: 3,
+                          child: Text('Last 3 months'),
                         ),
-                  isLoading: _exporting,
+                        DropdownMenuItem(
+                          value: 6,
+                          child: Text('Last 6 months'),
+                        ),
+                        DropdownMenuItem(
+                          value: 12,
+                          child: Text('Last 12 months'),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _months = value ?? _months),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: visibleCurrencies.contains(currency)
+                          ? currency
+                          : finance.preferredCurrency,
+                      decoration: const InputDecoration(labelText: 'Currency'),
+                      items: visibleCurrencies
+                          .map(
+                            (code) => DropdownMenuItem(
+                              value: code,
+                              child: Text(code),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) => setState(() => _currency = value),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ReportMetric(
+                      label: 'Income',
+                      value: income,
+                      currency: currency,
+                      color: AppColors.income,
+                      icon: Icons.south_west_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ReportMetric(
+                      label: 'Expenses',
+                      value: expenses,
+                      currency: currency,
+                      color: AppColors.expense,
+                      icon: Icons.north_east_rounded,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              GlassContainer(
+                padding: const EdgeInsets.all(14),
+                radius: 17,
+                blur: 7,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: AppColors.tealDark,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        'Net cash flow · ${income - expenses < 0 ? 'negative' : 'positive'}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    Text(
+                      formatMinorUnits(income - expenses, currency),
+                      style: TextStyle(
+                        color: income - expenses < 0
+                            ? AppColors.expense
+                            : AppColors.income,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              GlassContainer(
+                padding: const EdgeInsets.all(14),
+                radius: 17,
+                blur: 7,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.savings_outlined,
+                      color: AppColors.tealDark,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        'Current account balance',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    Text(
+                      formatMinorUnits(balance, currency),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _MonthlyReportChart(
+                finance: finance,
+                months: _months,
+                currency: currency,
+              ),
+              const SizedBox(height: 10),
+              _CategoryReport(
+                categories: categories,
+                currency: currency,
+                total: categoryTotal,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: GlassButton(
+                      label: 'Export CSV',
+                      icon: Icons.table_view_outlined,
+                      onPressed: _exporting
+                          ? null
+                          : () => _exportCsv(finance, currency, from, through),
+                      isLoading: _exporting,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: GlassButton(
+                      label: 'Share PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      onPressed: _exporting
+                          ? null
+                          : () => _exportPdf(
+                              currency,
+                              income,
+                              expenses,
+                              balance,
+                              categoryItems,
+                              finance,
+                              from,
+                              through,
+                            ),
+                      isLoading: _exporting,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              GlassContainer(
+                padding: const EdgeInsets.all(12),
+                radius: 15,
+                blur: 5,
+                child: Text(
+                  'Reports preserve transaction currencies. Amounts in different currencies are never combined or converted without an exchange rate.',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          GlassContainer(
-            padding: const EdgeInsets.all(12),
-            radius: 15,
-            blur: 5,
-            child: Text(
-              'Reports preserve transaction currencies. Amounts in different currencies are never combined or converted without an exchange rate.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ],
-      ),
-    );
+        );
       },
     );
   }
@@ -626,6 +641,13 @@ class _LegendDot extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ReportData {
+  const _ReportData({required this.summary, required this.categories});
+
+  final FinancialSummary summary;
+  final List<CategorySpending> categories;
 }
 
 String _monthLabel(DateTime month) => const [

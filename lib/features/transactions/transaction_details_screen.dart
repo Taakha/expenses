@@ -182,13 +182,37 @@ class TransactionDetailsScreen extends StatelessWidget {
             ),
           ],
           if (transaction.receiptPath != null) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.file(
-                File(transaction.receiptPath!),
-                errorBuilder: (context, error, stackTrace) =>
-                    const SizedBox.shrink(),
+              const SizedBox(height: 12),
+              FutureBuilder<List<ReceiptAttachment>>(
+                future: finance.loadTransactionReceipts(transaction.id),
+                builder: (context, snapshot) {
+                  final receiptPaths = snapshot.data?.isNotEmpty == true
+                      ? snapshot.data!.map((receipt) => receipt.localPath).toList()
+                      : [transaction.receiptPath!];
+                  return SizedBox(
+                    height: 220,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: receiptPaths.length,
+                      itemBuilder: (context, index) => Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.file(
+                            File(receiptPaths[index]),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const SizedBox(
+                                  width: 220,
+                                  child: Center(
+                                    child: Icon(Icons.broken_image_outlined),
+                                  ),
+                                ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],

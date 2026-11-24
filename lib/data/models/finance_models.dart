@@ -75,6 +75,50 @@ class FinancialAccount {
   };
 }
 
+class ReceiptAttachment {
+  const ReceiptAttachment({
+    required this.id,
+    required this.userId,
+    required this.transactionId,
+    required this.localPath,
+    required this.mimeType,
+    required this.fileSize,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String userId;
+  final String transactionId;
+  final String localPath;
+  final String mimeType;
+  final int fileSize;
+  final DateTime createdAt;
+
+  factory ReceiptAttachment.fromMap(Map<String, Object?> map) {
+    return ReceiptAttachment(
+      id: map['id']! as String,
+      userId: map['user_id']! as String,
+      transactionId: map['transaction_id']! as String,
+      localPath: map['local_path']! as String,
+      mimeType: map['mime_type']! as String,
+      fileSize: map['file_size']! as int,
+      createdAt: _dateTime(map['created_at']) ?? DateTime.now(),
+    );
+  }
+
+  Map<String, Object?> toMap() => {
+    'id': id,
+    'user_id': userId,
+    'transaction_id': transactionId,
+    'local_path': localPath,
+    'cloud_path': null,
+    'mime_type': mimeType,
+    'file_size': fileSize,
+    'upload_status': 'pending',
+    'created_at': createdAt.millisecondsSinceEpoch,
+  };
+}
+
 class FinancialTransaction {
   const FinancialTransaction({
     required this.id,

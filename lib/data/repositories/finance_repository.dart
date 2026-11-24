@@ -16,7 +16,7 @@ class FinanceException implements Exception {
   String toString() => message;
 }
 
-static String _monthKey(DateTime date) =>
+String _monthKey(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}';
 
 class FinanceSnapshot {
@@ -221,7 +221,10 @@ class FinanceRepository {
       from: DateTime(now.year, now.month),
       through: now,
     );
-    final monthlySummaries = await loadMonthlySummaries(uid: uid);
+    final monthlySummaries = await loadMonthlySummaries(
+      uid: uid,
+      monthCount: 12,
+    );
     final budgetProgress = <String, BudgetProgress>{};
     for (final budget in budgets.map(FinancialBudget.fromMap)) {
       budgetProgress[budget.id] = await loadBudgetProgress(budget);
@@ -282,8 +285,10 @@ class FinanceRepository {
     final where = <String>['user_id = ?', 'status = ?'];
     final whereArgs = <Object?>[uid, 'active'];
     if (accountId != null) {
-      where.add('account_id = ?');
-      whereArgs.add(accountId);
+      where.add(
+        "(account_id = ? OR (type = 'transfer' AND destination_account_id = ?))",
+      );
+      whereArgs.addAll([accountId, accountId]);
     }
     if (category != null) {
       where.add('category = ?');
@@ -398,8 +403,10 @@ class FinanceRepository {
       whereArgs.add(through.millisecondsSinceEpoch);
     }
     if (accountId != null) {
-      where.add('account_id = ?');
-      whereArgs.add(accountId);
+      where.add(
+        "(account_id = ? OR (type = 'transfer' AND destination_account_id = ?))",
+      );
+      whereArgs.addAll([accountId, accountId]);
     }
     if (category != null) {
       where.add('category = ?');
@@ -726,7 +733,10 @@ class FinanceRepository {
     });
   }
 
-  Future<void> saveTransaction(FinancialTransaction entry) async {
+  Future<void> saveTransaction(
+    FinancialTransaction entry, {
+    List<ReceiptAttachment> receipts = const [],
+  }) async {
     if (entry.amountMinor <= 0) {
       throw const FinanceException('Amount must be greater than zero.');
     }
@@ -816,8 +826,36 @@ class FinanceRepository {
       ..remove('deleted_at');
     await db.transaction((transaction) async {
       await _upsert(transaction, 'transactions', map);
+      await transaction.delete(
+        'receipts',
+        where: 'user_id = ? AND transaction_id = ?',
+        whereArgs: [entry.userId, entry.id],
+      );
+      for (final receipt in receipts) {
+        if (receipt.userId != entry.userId ||
+            receipt.transactionId != entry.id) {
+          throw const FinanceException(
+            'Receipt attachment does not belong to this transaction.',
+          );
+        }
+        await transaction.insert('receipts', receipt.toMap());
+      }
       await _queue(transaction, entry.userId, 'transactions', entry.id);
     });
+  }
+
+  Future<List<ReceiptAttachment>> loadTransactionReceipts(
+    String uid,
+    String transactionId,
+  ) async {
+    final db = await _database.database;
+    final rows = await db.query(
+      'receipts',
+      where: 'user_id = ? AND transaction_id = ?',
+      whereArgs: [uid, transactionId],
+      orderBy: 'created_at, id',
+    );
+    return rows.map(ReceiptAttachment.fromMap).toList();
   }
 
   Future<void> voidTransaction(String uid, String id) async {
