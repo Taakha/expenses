@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_icons.dart';
 import 'glass_container.dart';
 
 class ScreenHeader extends StatelessWidget {
@@ -28,9 +29,9 @@ class ScreenHeader extends StatelessWidget {
             IconButton(
               tooltip: 'Back',
               onPressed: onBack ?? () => Navigator.maybePop(context),
-              icon: const Icon(Icons.arrow_back_rounded),
+              icon: const Icon(AppIcons.back),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 2),
           ],
           Expanded(
             child: Column(
@@ -39,10 +40,7 @@ class ScreenHeader extends StatelessWidget {
                 Text(title, style: Theme.of(context).textTheme.headlineMedium),
                 if (subtitle != null) ...[
                   const SizedBox(height: 3),
-                  Text(
-                    subtitle!,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                  Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ],
             ),
@@ -71,10 +69,11 @@ class GlassEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassContainer(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(24),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 38, color: Theme.of(context).colorScheme.primary),
+          Icon(icon, size: 36, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 10),
           Text(title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 5),

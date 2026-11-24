@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'app_icons.dart';
+import '../theme/app_colors.dart';
+
 class AppConstants {
   const AppConstants._();
 
-  static const appName = 'Money Wise';
-  static const tagline = 'Take Control of Your Money';
+  static const appName         = 'Money Wise';
+  static const tagline         = 'Take Control of Your Money';
   static const defaultCurrency = 'UGX';
+
   static const supportedCurrencies = <String, String>{
     'UGX': 'Ugandan Shilling',
     'USD': 'US Dollar',
@@ -58,58 +62,31 @@ class AppConstants {
   ];
 }
 
+/// Provides the Bootstrap icon and teal-palette colour for a category name.
 class CategoryStyle {
   const CategoryStyle(this.icon, this.color);
 
   final IconData icon;
-  final Color color;
+  final Color    color;
 
   static CategoryStyle forName(String name, {bool income = false}) {
-    return switch (name.toLowerCase()) {
-      'salary' || 'income' => const CategoryStyle(
-        Icons.account_balance_wallet_outlined,
-        Color(0xFF31C99A),
-      ),
-      'food' || 'groceries' => const CategoryStyle(
-        Icons.restaurant_outlined,
-        Color(0xFFFFB85C),
-      ),
-      'accommodation' || 'rent' => const CategoryStyle(
-        Icons.home_work_outlined,
-        Color(0xFF9B8AFB),
-      ),
-      'transport' => const CategoryStyle(
-        Icons.directions_car_outlined,
-        Color(0xFF62B5F8),
-      ),
-      'education' => const CategoryStyle(
-        Icons.menu_book_outlined,
-        Color(0xFF48C6D9),
-      ),
-      'communication' => const CategoryStyle(
-        Icons.wifi_rounded,
-        Color(0xFF71A7FF),
-      ),
-      'shopping' => const CategoryStyle(
-        Icons.shopping_bag_outlined,
-        Color(0xFFF579B9),
-      ),
-      'health' || 'personal care' => const CategoryStyle(
-        Icons.favorite_border,
-        Color(0xFFF17E83),
-      ),
-      'entertainment' => const CategoryStyle(
-        Icons.movie_outlined,
-        Color(0xFFBB8AF5),
-      ),
-      'bills' => const CategoryStyle(
-        Icons.receipt_long_outlined,
-        Color(0xFFF89D6B),
-      ),
-      _ => CategoryStyle(
-        income ? Icons.south_west_rounded : Icons.more_horiz_rounded,
-        const Color(0xFF69C9A6),
-      ),
+    final icon = AppIcons.forCategory(name, income: income);
+    final color = switch (name.toLowerCase()) {
+      'salary' || 'allowance' || 'allowances' || 'business' || 'freelance'
+                              => const Color(0xFF31C99A),
+      'scholarship'           => const Color(0xFF48C6D9),
+      'gift'                  => const Color(0xFFF579B9),
+      'food' || 'groceries'   => const Color(0xFFFFB85C),
+      'accommodation' || 'rent' => const Color(0xFF9B8AFB),
+      'transport'             => const Color(0xFF62B5F8),
+      'education'             => const Color(0xFF48C6D9),
+      'communication'         => const Color(0xFF71A7FF),
+      'shopping'              => const Color(0xFFF579B9),
+      'health' || 'personal care' => const Color(0xFFF17E83),
+      'entertainment'         => const Color(0xFFBB8AF5),
+      'bills'                 => const Color(0xFFF89D6B),
+      _                       => AppColors.teal,
     };
+    return CategoryStyle(icon, color);
   }
 }

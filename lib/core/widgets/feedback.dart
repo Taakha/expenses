@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_icons.dart';
 import '../theme/app_colors.dart';
 import 'glass_container.dart';
 
@@ -63,36 +64,39 @@ class SyncStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOffline = state == 'offline';
-    final color = isOffline ? AppColors.amber : AppColors.teal;
+    final isError   = state == 'needsAttention';
+    final color = isOffline ? AppColors.amber
+        : isError ? AppColors.expense
+        : AppColors.teal;
+    final icon = isOffline ? AppIcons.syncOffline
+        : isError ? AppIcons.syncError
+        : state == 'synchronizing' ? AppIcons.syncPending
+        : AppIcons.syncDone;
     final label = switch (state) {
-      'offline' => 'Offline · changes saved on this device',
-      'synchronizing' => 'Syncing your changes…',
-      'needsAttention' => 'Sync needs attention',
-      _ =>
-        pending == 0
-            ? 'All changes synchronized'
-            : '$pending changes waiting to sync',
+      'offline'          => 'Offline · changes saved on this device',
+      'synchronizing'    => 'Syncing your changes…',
+      'needsAttention'   => 'Sync needs attention',
+      _                  => pending == 0
+          ? 'All changes synchronized'
+          : '$pending change${pending == 1 ? '' : 's'} waiting to sync',
     };
+
     return GestureDetector(
       onTap: onTap,
       child: GlassContainer(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-        radius: 14,
-        blur: 8,
+        radius: 13,
+        blur: 7,
         child: Row(
           children: [
-            Icon(
-              isOffline ? Icons.cloud_off_outlined : Icons.cloud_done_outlined,
-              size: 16,
-              color: color,
-            ),
+            Icon(icon, size: 15, color: color),
             const SizedBox(width: 8),
             Expanded(
               child: Text(label, style: Theme.of(context).textTheme.bodySmall),
             ),
             if (state == 'synchronizing')
               const SizedBox.square(
-                dimension: 14,
+                dimension: 13,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
           ],

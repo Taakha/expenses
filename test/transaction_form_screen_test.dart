@@ -119,6 +119,7 @@ FinancialAccount _cashAccount() => const FinancialAccount(
 class _FakeFinanceController extends Fake implements FinanceController {
   _FakeFinanceController(this.accounts);
 
+  @override
   final List<FinancialAccount> accounts;
   FinancialTransaction? savedTransaction;
 
