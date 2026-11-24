@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/services/finance_controller.dart';
+import '../../core/services/financial_calculation_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/money.dart';
 import '../../core/utils/validators.dart';
@@ -111,16 +112,26 @@ class _BudgetSummary extends StatelessWidget {
           const CircleAvatar(
             radius: 19,
             backgroundColor: Color(0x1F0BA98D),
-            child: Icon(Icons.pie_chart_outline_rounded, color: AppColors.tealDark, size: 20),
+            child: Icon(
+              Icons.pie_chart_outline_rounded,
+              color: AppColors.tealDark,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Active allocation · $currency', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Active allocation · $currency',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 3),
-                Text('${formatMinorUnits(spent, currency)} spent of ${formatMinorUnits(limit, currency)}', style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  '${formatMinorUnits(spent, currency)} spent of ${formatMinorUnits(limit, currency)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             ),
           ),
@@ -186,7 +197,10 @@ class _BudgetCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(budget.name, style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        budget.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         budget.categoryIds.isEmpty
@@ -206,7 +220,10 @@ class _BudgetCard extends StatelessWidget {
                   },
                   itemBuilder: (context) => const [
                     PopupMenuItem(value: 'edit', child: Text('Edit budget')),
-                    PopupMenuItem(value: 'delete', child: Text('Archive budget')),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Archive budget'),
+                    ),
                   ],
                 ),
               ],
@@ -221,9 +238,19 @@ class _BudgetCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                Text('of ${formatMinorUnits(budget.limitMinor, budget.currencyCode)}', style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  'of ${formatMinorUnits(budget.limitMinor, budget.currencyCode)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 const SizedBox(width: 6),
-                Text('${progress.usagePercent}%', style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w800)),
+                Text(
+                  '${progress.usagePercent}%',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -253,12 +280,15 @@ class _BudgetCard extends StatelessWidget {
                           ? color
                           : Theme.of(context).textTheme.bodySmall?.color,
                       fontSize: 11,
-                      fontWeight: FontWeight.w650,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 Text(
-                  formatMinorUnits(progress.remainingMinor, budget.currencyCode),
+                  formatMinorUnits(
+                    progress.remainingMinor,
+                    budget.currencyCode,
+                  ),
                   style: TextStyle(
                     color: progress.remainingMinor < 0
                         ? AppColors.expense
@@ -316,10 +346,17 @@ Future<void> _editBudget(
   var currency = existing?.currencyCode ?? finance.preferredCurrency;
   var selectedCategories = <String>{...?existing?.categoryIds};
   var alertPercentage = existing?.alertPercentage ?? 70;
-  var start = existing?.startDate ?? DateTime(DateTime.now().year, DateTime.now().month);
-  var end = existing?.endDate ?? DateTime(DateTime.now().year, DateTime.now().month + 1, 0);
+  var start =
+      existing?.startDate ??
+      DateTime(DateTime.now().year, DateTime.now().month);
+  var end =
+      existing?.endDate ??
+      DateTime(DateTime.now().year, DateTime.now().month + 1, 0);
   final availableCategories = finance.categories
-      .where((item) => item['type'] == 'expense' && (item['is_active'] as int? ?? 1) == 1)
+      .where(
+        (item) =>
+            item['type'] == 'expense' && (item['is_active'] as int? ?? 1) == 1,
+      )
       .map((item) => item['name']! as String)
       .toList();
   await showDialog<void>(
@@ -335,13 +372,21 @@ Future<void> _editBudget(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  GlassTextField(controller: name, label: 'Budget name', icon: Icons.edit_outlined, validator: (value) => Validators.required(value, 'Budget name')),
+                  GlassTextField(
+                    controller: name,
+                    label: 'Budget name',
+                    icon: Icons.edit_outlined,
+                    validator: (value) =>
+                        Validators.required(value, 'Budget name'),
+                  ),
                   const SizedBox(height: 10),
                   GlassTextField(
                     controller: limit,
                     label: 'Limit ($currency)',
                     icon: Icons.payments_outlined,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     validator: (value) {
                       try {
                         parseMinorUnits(value ?? '', currency);
@@ -354,48 +399,103 @@ Future<void> _editBudget(
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     initialValue: currency,
-                    decoration: const InputDecoration(labelText: 'Budget currency'),
-                    items: AppConstants.supportedCurrencies.keys.map((code) => DropdownMenuItem(value: code, child: Text(code))).toList(),
-                    onChanged: (value) => setState(() => currency = value ?? currency),
+                    decoration: const InputDecoration(
+                      labelText: 'Budget currency',
+                    ),
+                    items: AppConstants.supportedCurrencies.keys
+                        .map(
+                          (code) =>
+                              DropdownMenuItem(value: code, child: Text(code)),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => currency = value ?? currency),
                   ),
                   const SizedBox(height: 14),
-                  Align(alignment: Alignment.centerLeft, child: Text('Categories · leave empty for all', style: Theme.of(context).textTheme.titleMedium)),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Categories · leave empty for all',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
                   const SizedBox(height: 5),
                   Wrap(
                     spacing: 5,
-                    children: availableCategories.map((category) => FilterChip(
-                      label: Text(category),
-                      selected: selectedCategories.contains(category),
-                      onSelected: (selected) => setState(() {
-                        if (selected) {
-                          selectedCategories.add(category);
-                        } else {
-                          selectedCategories.remove(category);
-                        }
-                      }),
-                    )).toList(),
+                    children: availableCategories
+                        .map(
+                          (category) => FilterChip(
+                            label: Text(category),
+                            selected: selectedCategories.contains(category),
+                            onSelected: (selected) => setState(() {
+                              if (selected) {
+                                selectedCategories.add(category);
+                              } else {
+                                selectedCategories.remove(category);
+                              }
+                            }),
+                          ),
+                        )
+                        .toList(),
                   ),
                   DropdownButtonFormField<int>(
                     initialValue: alertPercentage,
                     decoration: const InputDecoration(labelText: 'Alert me at'),
                     items: const [
-                      DropdownMenuItem(value: 70, child: Text('70% · approaching limit')),
-                      DropdownMenuItem(value: 90, child: Text('90% · almost exhausted')),
+                      DropdownMenuItem(
+                        value: 70,
+                        child: Text('70% · approaching limit'),
+                      ),
+                      DropdownMenuItem(
+                        value: 90,
+                        child: Text('90% · almost exhausted'),
+                      ),
                     ],
-                    onChanged: (value) => setState(() => alertPercentage = value ?? alertPercentage),
+                    onChanged: (value) => setState(
+                      () => alertPercentage = value ?? alertPercentage,
+                    ),
                   ),
                   const SizedBox(height: 9),
                   Row(
                     children: [
-                      Expanded(child: OutlinedButton.icon(onPressed: () async {
-                        final value = await showDatePicker(context: context, initialDate: start, firstDate: DateTime(2000), lastDate: DateTime.now().add(const Duration(days: 3660)));
-                        if (value != null) setState(() => start = value);
-                      }, icon: const Icon(Icons.calendar_today_outlined, size: 16), label: Text('From ${_date(start)}'))),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final value = await showDatePicker(
+                              context: context,
+                              initialDate: start,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 3660),
+                              ),
+                            );
+                            if (value != null) setState(() => start = value);
+                          },
+                          icon: const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 16,
+                          ),
+                          label: Text('From ${_date(start)}'),
+                        ),
+                      ),
                       const SizedBox(width: 7),
-                      Expanded(child: OutlinedButton.icon(onPressed: () async {
-                        final value = await showDatePicker(context: context, initialDate: end.isBefore(start) ? start : end, firstDate: start, lastDate: DateTime.now().add(const Duration(days: 3660)));
-                        if (value != null) setState(() => end = value);
-                      }, icon: const Icon(Icons.event_outlined, size: 16), label: Text('To ${_date(end)}'))),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final value = await showDatePicker(
+                              context: context,
+                              initialDate: end.isBefore(start) ? start : end,
+                              firstDate: start,
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 3660),
+                              ),
+                            );
+                            if (value != null) setState(() => end = value);
+                          },
+                          icon: const Icon(Icons.event_outlined, size: 16),
+                          label: Text('To ${_date(end)}'),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -404,29 +504,39 @@ Future<void> _editBudget(
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               try {
                 final now = DateTime.now();
-                await finance.saveBudget(FinancialBudget(
-                  id: existing?.id ?? FinanceRepository.createId(),
-                  userId: finance.userId!,
-                  name: name.text.trim(),
-                  limitMinor: parseMinorUnits(limit.text, currency),
-                  currencyCode: currency,
-                  startDate: start,
-                  endDate: end,
-                  categoryIds: selectedCategories.toList()..sort(),
-                  alertPercentage: alertPercentage,
-                  createdAt: existing?.createdAt ?? now,
-                  updatedAt: now,
-                ));
+                await finance.saveBudget(
+                  FinancialBudget(
+                    id: existing?.id ?? FinanceRepository.createId(),
+                    userId: finance.userId!,
+                    name: name.text.trim(),
+                    limitMinor: parseMinorUnits(limit.text, currency),
+                    currencyCode: currency,
+                    startDate: start,
+                    endDate: end,
+                    categoryIds: selectedCategories.toList()..sort(),
+                    alertPercentage: alertPercentage,
+                    createdAt: existing?.createdAt ?? now,
+                    updatedAt: now,
+                  ),
+                );
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
                 if (context.mounted) showAppMessage(context, 'Budget saved.');
               } catch (error) {
-                if (dialogContext.mounted) showAppMessage(dialogContext, error.toString(), isError: true);
+                if (dialogContext.mounted)
+                  showAppMessage(
+                    dialogContext,
+                    error.toString(),
+                    isError: true,
+                  );
               }
             },
             child: Text(existing == null ? 'Create budget' : 'Save changes'),
@@ -451,7 +561,8 @@ Future<void> _deleteBudget(BuildContext context, FinancialBudget budget) async {
     await context.read<FinanceController>().deleteBudget(budget.id);
     if (context.mounted) showAppMessage(context, 'Budget archived.');
   } catch (error) {
-    if (context.mounted) showAppMessage(context, error.toString(), isError: true);
+    if (context.mounted)
+      showAppMessage(context, error.toString(), isError: true);
   }
 }
 
@@ -462,5 +573,7 @@ String _moneyInput(int minor, String currency) {
   final multiplier = scale == 0 ? 1 : 100;
   final whole = minor ~/ multiplier;
   final fraction = minor % multiplier;
-  return scale == 0 ? '$whole' : '$whole.${fraction.toString().padLeft(scale, '0')}';
+  return scale == 0
+      ? '$whole'
+      : '$whole.${fraction.toString().padLeft(scale, '0')}';
 }

@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import '../../app/routes/route_names.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/finance_controller.dart';
+import '../../core/services/financial_calculation_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/money.dart';
 import '../../core/widgets/feedback.dart';
 import '../../core/widgets/glass_container.dart';
+import '../../core/widgets/screen_header.dart';
 import '../../data/models/finance_models.dart';
 import '../../shared/components/transaction_tile.dart';
 
@@ -29,12 +31,19 @@ class DashboardScreen extends StatelessWidget {
     final income = monthSummary.incomeByCurrency[currency] ?? 0;
     final expenses = monthSummary.expensesByCurrency[currency] ?? 0;
     final available = finance.accounts
-        .where((account) => !account.isArchived && account.currencyCode == currency)
-        .fold<int>(0, (total, account) => total + finance.accountBalance(account));
+        .where(
+          (account) => !account.isArchived && account.currencyCode == currency,
+        )
+        .fold<int>(
+          0,
+          (total, account) => total + finance.accountBalance(account),
+        );
     final accountNames = {
       for (final account in finance.accounts) account.id: account.name,
     };
-    final unreadCount = finance.notifications.where((item) => !item.isRead).length;
+    final unreadCount = finance.notifications
+        .where((item) => !item.isRead)
+        .length;
     return ListView(
       padding: const EdgeInsets.fromLTRB(17, 12, 17, 28),
       children: [
@@ -50,7 +59,8 @@ class DashboardScreen extends StatelessWidget {
             ),
             IconButton(
               tooltip: 'Notifications',
-              onPressed: () => Navigator.pushNamed(context, RouteNames.notifications),
+              onPressed: () =>
+                  Navigator.pushNamed(context, RouteNames.notifications),
               icon: Badge(
                 isLabelVisible: unreadCount > 0,
                 label: Text('$unreadCount'),
@@ -76,9 +86,15 @@ class DashboardScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Text('Good ${_greeting()}, $name 👋', style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          'Good ${_greeting()}, $name 👋',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: 3),
-        Text('Your money at a glance', style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          'Your money at a glance',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
         const SizedBox(height: 13),
         SyncStatusCard(
           state: finance.syncState.name,
@@ -92,7 +108,9 @@ class DashboardScreen extends StatelessWidget {
           expenses: expenses,
           currency: currency,
         ),
-        if (finance.summary.balanceByCurrency.keys.any((key) => key != currency))
+        if (finance.summary.balanceByCurrency.keys.any(
+          (key) => key != currency,
+        ))
           Padding(
             padding: const EdgeInsets.only(top: 7),
             child: Text(
@@ -104,9 +122,13 @@ class DashboardScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Quick actions', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Quick actions',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             TextButton(
-              onPressed: () => Navigator.pushNamed(context, RouteNames.accounts),
+              onPressed: () =>
+                  Navigator.pushNamed(context, RouteNames.accounts),
               child: const Text('Accounts'),
             ),
           ],
@@ -160,7 +182,10 @@ class DashboardScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Budget progress', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Budget progress',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             TextButton(
               onPressed: () => onNavigate(2),
               child: const Text('See all'),
@@ -178,17 +203,22 @@ class DashboardScreen extends StatelessWidget {
             ),
           )
         else
-          ...finance.budgets.take(2).map(
-            (budget) => _BudgetPreview(
-              budget: budget,
-              progress: finance.budgetProgress(budget),
-            ),
-          ),
+          ...finance.budgets
+              .take(2)
+              .map(
+                (budget) => _BudgetPreview(
+                  budget: budget,
+                  progress: finance.budgetProgress(budget),
+                ),
+              ),
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Recent transactions', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Recent transactions',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             TextButton(
               onPressed: () => onNavigate(1),
               child: const Text('View all'),
@@ -201,17 +231,20 @@ class DashboardScreen extends StatelessWidget {
             message: 'Add your first income or expense to see your activity.',
             icon: Icons.receipt_long_outlined,
             action: TextButton(
-              onPressed: () => _openTransaction(context, TransactionType.expense),
+              onPressed: () =>
+                  _openTransaction(context, TransactionType.expense),
               child: const Text('Add a transaction'),
             ),
           )
         else
-          ...finance.transactions.take(4).map(
-            (transaction) => TransactionTile(
-              transaction: transaction,
-              accountName: accountNames[transaction.accountId],
-            ),
-          ),
+          ...finance.transactions
+              .take(4)
+              .map(
+                (transaction) => TransactionTile(
+                  transaction: transaction,
+                  accountName: accountNames[transaction.accountId],
+                ),
+              ),
         if (finance.syncError != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -224,11 +257,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   static void _openTransaction(BuildContext context, TransactionType type) {
-    Navigator.pushNamed(
-      context,
-      RouteNames.transactionAdd,
-      arguments: type,
-    );
+    Navigator.pushNamed(context, RouteNames.transactionAdd, arguments: type);
   }
 }
 
@@ -272,20 +301,44 @@ class _BalanceSummary extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(currency, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              Text(
+                currency,
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
+              ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
             formatMinorUnits(balance, currency),
-            style: const TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 27,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
           ),
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _SummaryStat(label: 'Income', amount: income, currency: currency, icon: Icons.south_west_rounded, color: const Color(0xFF75E8C4))),
+              Expanded(
+                child: _SummaryStat(
+                  label: 'Income',
+                  amount: income,
+                  currency: currency,
+                  icon: Icons.south_west_rounded,
+                  color: const Color(0xFF75E8C4),
+                ),
+              ),
               const SizedBox(width: 9),
-              Expanded(child: _SummaryStat(label: 'Expenses', amount: expenses, currency: currency, icon: Icons.north_east_rounded, color: const Color(0xFFFF9B98))),
+              Expanded(
+                child: _SummaryStat(
+                  label: 'Expenses',
+                  amount: expenses,
+                  currency: currency,
+                  icon: Icons.north_east_rounded,
+                  color: const Color(0xFFFF9B98),
+                ),
+              ),
             ],
           ),
         ],
@@ -326,13 +379,20 @@ class _SummaryStat extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                ),
                 const SizedBox(height: 3),
                 Text(
                   formatMinorUnits(amount, currency),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
@@ -437,17 +497,27 @@ class _MonthlyChart extends StatelessWidget {
                 gridData: const FlGridData(show: false),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 20,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= 6) return const SizedBox.shrink();
-                        final month = DateTime(now.year, now.month - (5 - index));
+                        if (index < 0 || index >= 6)
+                          return const SizedBox.shrink();
+                        final month = DateTime(
+                          now.year,
+                          now.month - (5 - index),
+                        );
                         return Padding(
                           padding: const EdgeInsets.only(top: 5),
                           child: Text(
@@ -508,7 +578,11 @@ class _ChartLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 5),
         Text(label, style: Theme.of(context).textTheme.bodySmall),
       ],
@@ -542,8 +616,16 @@ class _BudgetPreview extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(budget.name, style: Theme.of(context).textTheme.titleMedium)),
-                Text('${progress.usagePercent}%', style: TextStyle(color: color, fontWeight: FontWeight.w800)),
+                Expanded(
+                  child: Text(
+                    budget.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Text(
+                  '${progress.usagePercent}%',
+                  style: TextStyle(color: color, fontWeight: FontWeight.w800),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -559,8 +641,16 @@ class _BudgetPreview extends StatelessWidget {
             const SizedBox(height: 5),
             Row(
               children: [
-                Expanded(child: Text('Spent ${formatMinorUnits(progress.spentMinor, budget.currencyCode)}', style: Theme.of(context).textTheme.bodySmall)),
-                Text('${formatMinorUnits(progress.remainingMinor, budget.currencyCode)} left', style: Theme.of(context).textTheme.bodySmall),
+                Expanded(
+                  child: Text(
+                    'Spent ${formatMinorUnits(progress.spentMinor, budget.currencyCode)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                Text(
+                  '${formatMinorUnits(progress.remainingMinor, budget.currencyCode)} left',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             ),
           ],
@@ -571,8 +661,18 @@ class _BudgetPreview extends StatelessWidget {
 }
 
 String _monthLabel(int month) => const [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ][month - 1];
 
 String _greeting() {

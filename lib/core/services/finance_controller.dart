@@ -7,14 +7,14 @@ import '../../data/models/finance_models.dart';
 import '../../data/repositories/finance_repository.dart';
 import '../../data/synchronization/sync_service.dart';
 import 'financial_calculation_service.dart';
+import 'report_export_service.dart';
 
 class FinanceController extends ChangeNotifier {
   FinanceController({
     FinanceRepository? repository,
     SyncService? syncService,
     Connectivity? connectivity,
-    this._calculations =
-        const FinancialCalculationService(),
+    this._calculations = const FinancialCalculationService(),
   }) : _repository = repository ?? FinanceRepository(),
        _syncService = syncService ?? SyncService(),
        _connectivity = connectivity ?? Connectivity();
@@ -103,6 +103,12 @@ class FinanceController extends ChangeNotifier {
     debt,
     snapshot?.debtPayments ?? const <DebtPayment>[],
   );
+
+  Future<String> exportTransactionsCsv(
+    List<FinancialTransaction> transactions,
+  ) => const ReportExportService().saveTransactionsCsv(transactions, {
+    for (final account in accounts) account.id: account.name,
+  });
 
   Future<void> initialize({
     required String uid,
