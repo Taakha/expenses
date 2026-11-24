@@ -191,7 +191,7 @@ void main() {
   });
 
   test('savings withdrawals reduce only their own goal total', () {
-    const contributions = [
+    final contributions = [
       SavingsContribution(
         id: 'one',
         userId: 'user-1',
@@ -242,7 +242,7 @@ void main() {
       principalMinor: 200000,
       currencyCode: 'UGX',
     );
-    const payments = [
+    final payments = [
       DebtPayment(
         id: 'payment-1',
         userId: 'user-1',
@@ -270,10 +270,16 @@ void main() {
     ];
 
     expect(calculations.outstandingDebt(debt, payments), 0);
-    expect(
-      calculations.outstandingDebt(debt.copyWith(status: 'settled'), const []),
-      0,
+    const settledDebt = DebtRecord(
+      id: 'loan',
+      userId: 'user-1',
+      personName: 'Lender',
+      type: 'borrowed',
+      principalMinor: 200000,
+      currencyCode: 'UGX',
+      status: 'settled',
     );
+    expect(calculations.outstandingDebt(settledDebt, const []), 0);
   });
 
   test('ranks category spending after refunds and filters by currency', () {

@@ -48,9 +48,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyBper8XxL65_LBuz18LbpkrThCziZIQUOI',
-    appId: '1:741195299183:web:7286e8241839713e6c509a',
+    appId: '1:741195299183:web:f9f631010e3b3c926c509a',
     messagingSenderId: '741195299183',
     projectId: 'moneywise-collins-2026',
+    databaseURL: 'https://moneywise-collins-2026-default-rtdb.firebaseio.com',
     authDomain: 'moneywise-collins-2026.firebaseapp.com',
     storageBucket: 'moneywise-collins-2026.firebasestorage.app',
   );

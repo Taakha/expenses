@@ -572,10 +572,10 @@ class FinanceRepository {
     final args = <Object?>[
       account.userId,
       account.id,
-      if (excludedTransactionId != null) excludedTransactionId,
+      ?excludedTransactionId,
       account.userId,
       account.id,
-      if (excludedTransactionId != null) excludedTransactionId,
+      ?excludedTransactionId,
     ];
     final rows = await db.rawQuery(
       '''

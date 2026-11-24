@@ -32,7 +32,7 @@ class AppIcons {
   static const syncDone       = BootstrapIcons.cloud_check;
   static const syncPending    = BootstrapIcons.cloud_upload;
   static const syncOffline    = BootstrapIcons.cloud_slash;
-  static const syncError      = BootstrapIcons.cloud_x;
+  static const syncError      = BootstrapIcons.exclamation_triangle;
 
   // ── Accounts ────────────────────────────────────────────────────────────────
   static const accountCash    = BootstrapIcons.cash_coin;
