@@ -605,30 +605,79 @@ class FinanceRepository {
     FinancialBudget budget,
   ) async {
     final db = await _database.database;
-    var categoryClause = '';
-    if (budget.categoryIds.isNotEmpty) {
-      categoryClause =
-          ' AND category IN (${List.filled(budget.categoryIds.length, '?').join(', ')})';
-    }
+    final categoryClause = budget.categoryIds.isEmpty
+        ? ''
+        : ' AND t.category IN (${List.filled(budget.categoryIds.length, '?').join(', ')})';
+    final end = DateTime(
+      budget.endDate.year,
+      budget.endDate.month,
+      budget.endDate.day,
+      23,
+      59,
+      59,
+      999,
+    );
+    final specificity =
+        (budget.accountId == null ? 0 : 2) +
+        (budget.categoryIds.isEmpty ? 0 : 1);
     final rows = await db.rawQuery(
       '''
       SELECT COALESCE(SUM(CASE
-        WHEN type = 'expense' THEN amount_minor
-        WHEN type = 'refund' THEN -amount_minor
+        WHEN t.type = 'expense' THEN t.amount_minor
+        WHEN t.type = 'refund' THEN -t.amount_minor
         ELSE 0
       END), 0) AS spent_minor
-      FROM transactions
-      WHERE user_id = ? AND status = ? AND currency_code = ?
-        AND transaction_date >= ? AND transaction_date <= ?
-        AND type IN ('expense', 'refund')$categoryClause
+      FROM transactions AS t
+      WHERE t.user_id = ? AND t.status = 'active' AND t.currency_code = ?
+        AND t.transaction_date >= ? AND t.transaction_date <= ?
+        AND (? IS NULL OR t.account_id = ?)
+        AND t.type IN ('expense', 'refund')$categoryClause
+        AND NOT EXISTS (
+          SELECT 1
+          FROM budgets AS other
+          WHERE other.user_id = t.user_id
+            AND other.is_archived = 0
+            AND other.currency_code = t.currency_code
+            AND other.id != ?
+            AND t.transaction_date >= other.start_date
+            AND t.transaction_date <= CASE
+              WHEN time(other.end_date / 1000, 'unixepoch', 'localtime') = '00:00:00'
+              THEN other.end_date + 86399999
+              ELSE other.end_date
+            END
+            AND (other.account_id IS NULL OR other.account_id = t.account_id)
+            AND (
+              other.category_ids = ''
+              OR instr('|' || other.category_ids || '|', '|' || t.category || '|') > 0
+            )
+            AND (
+              (CASE WHEN other.account_id IS NULL THEN 0 ELSE 2 END
+                + CASE WHEN other.category_ids = '' THEN 0 ELSE 1 END) > ?
+              OR (
+                (CASE WHEN other.account_id IS NULL THEN 0 ELSE 2 END
+                  + CASE WHEN other.category_ids = '' THEN 0 ELSE 1 END) = ?
+                AND (
+                  other.created_at < ?
+                  OR (other.created_at = ? AND other.id < ?)
+                )
+              )
+            )
+        )
       ''',
       [
         budget.userId,
-        'active',
         budget.currencyCode,
         budget.startDate.millisecondsSinceEpoch,
-        budget.endDate.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+        budget.accountId,
+        budget.accountId,
         ...budget.categoryIds,
+        budget.id,
+        specificity,
+        specificity,
+        budget.createdAt?.millisecondsSinceEpoch ?? 0,
+        budget.createdAt?.millisecondsSinceEpoch ?? 0,
+        budget.id,
       ],
     );
     var spent = rows.first['spent_minor']! as int;
@@ -648,6 +697,7 @@ class FinanceRepository {
     required String currencyCode,
     DateTime? from,
     DateTime? through,
+    String? accountId,
   }) async {
     final where = <String>[
       'user_id = ?',
@@ -664,6 +714,10 @@ class FinanceRepository {
       where.add('transaction_date <= ?');
       args.add(through.millisecondsSinceEpoch);
     }
+    if (accountId != null) {
+      where.add('account_id = ?');
+      args.add(accountId);
+    }
     final db = await _database.database;
     final rows = await db.rawQuery(
       '''
@@ -671,7 +725,8 @@ class FinanceRepository {
         WHEN type = 'expense' THEN amount_minor
         WHEN type = 'refund' THEN -amount_minor
         ELSE 0
-      END) AS amount_minor
+      END) AS amount_minor,
+      COUNT(*) AS transaction_count
       FROM transactions
       WHERE ${where.join(' AND ')}
       GROUP BY category
@@ -686,6 +741,7 @@ class FinanceRepository {
           category: row['category']! as String,
           currencyCode: currencyCode,
           amountMinor: row['amount_minor']! as int,
+          transactionCount: row['transaction_count']! as int,
         ),
     ];
   }

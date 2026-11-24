@@ -39,11 +39,13 @@ class CategorySpending {
     required this.category,
     required this.currencyCode,
     required this.amountMinor,
+    this.transactionCount = 0,
   });
 
   final String category;
   final String currencyCode;
   final int amountMinor;
+  final int transactionCount;
 }
 
 class FinancialCalculationService {
@@ -171,10 +173,7 @@ class FinancialCalculationService {
     return total;
   }
 
-  int outstandingDebt(
-    DebtRecord debt,
-    List<DebtPayment> payments,
-  ) {
+  int outstandingDebt(DebtRecord debt, List<DebtPayment> payments) {
     if (debt.status == 'settled') return 0;
     final paid = payments
         .where((payment) => payment.debtId == debt.id)
@@ -190,6 +189,7 @@ class FinancialCalculationService {
     DateTime? through,
   }) {
     final totals = <String, int>{};
+    final counts = <String, int>{};
     for (final transaction in transactions) {
       if (transaction.status != 'active' ||
           transaction.currencyCode != currencyCode ||
@@ -198,8 +198,18 @@ class FinancialCalculationService {
       }
       if (transaction.type == TransactionType.expense) {
         _add(totals, transaction.category, transaction.amountMinor);
+        counts.update(
+          transaction.category,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
       } else if (transaction.type == TransactionType.refund) {
         _add(totals, transaction.category, -transaction.amountMinor);
+        counts.update(
+          transaction.category,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
       }
     }
     return [
@@ -208,6 +218,7 @@ class FinancialCalculationService {
           category: entry.key,
           currencyCode: currencyCode,
           amountMinor: entry.value,
+          transactionCount: counts[entry.key] ?? 0,
         ),
     ]..sort((a, b) => b.amountMinor.compareTo(a.amountMinor));
   }

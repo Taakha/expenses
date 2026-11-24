@@ -107,11 +107,13 @@ class FinanceController extends ChangeNotifier {
     required String currencyCode,
     DateTime? from,
     DateTime? through,
+    String? accountId,
   }) => _repository.loadCategorySpending(
     uid: _requireUid(),
     currencyCode: currencyCode,
     from: from,
     through: through,
+    accountId: accountId,
   );
 
   int accountBalance(FinancialAccount account) =>

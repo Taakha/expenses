@@ -43,29 +43,29 @@ class _NavigationShellState extends State<NavigationShell> {
         onDestinationSelected: (index) => setState(() => _index = index),
         destinations: const [
           NavigationDestination(
-            icon:         Icon(AppIcons.home),
+            icon: Icon(AppIcons.home),
             selectedIcon: Icon(AppIcons.homeFill),
             label: 'Home',
           ),
           NavigationDestination(
-            icon:         Icon(AppIcons.activity),
+            icon: Icon(AppIcons.activity),
             selectedIcon: Icon(AppIcons.activityFill),
             label: 'Activity',
           ),
           NavigationDestination(
-            icon:         Icon(AppIcons.budgets),
+            icon: Icon(AppIcons.budgets),
             selectedIcon: Icon(AppIcons.budgetsFill),
             label: 'Budgets',
           ),
           NavigationDestination(
-            icon:         Icon(AppIcons.reports),
+            icon: Icon(AppIcons.reports),
             selectedIcon: Icon(AppIcons.reportsFill),
             label: 'Reports',
           ),
           NavigationDestination(
-            icon:         Icon(AppIcons.profile),
+            icon: Icon(AppIcons.profile),
             selectedIcon: Icon(AppIcons.profileFill),
-            label: 'Profile',
+            label: 'More',
           ),
         ],
       ),

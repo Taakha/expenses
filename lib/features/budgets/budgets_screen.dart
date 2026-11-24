@@ -77,6 +77,12 @@ class BudgetsScreen extends StatelessWidget {
               (budget) => _BudgetCard(
                 budget: budget,
                 progress: finance.budgetProgress(budget),
+                accountName: budget.accountId == null
+                    ? null
+                    : finance.accounts
+                          .where((account) => account.id == budget.accountId)
+                          .map((account) => account.name)
+                          .firstOrNull,
                 onEdit: () => _editBudget(context, budget),
                 onDelete: () => _deleteBudget(context, budget),
               ),
@@ -154,12 +160,14 @@ class _BudgetCard extends StatelessWidget {
   const _BudgetCard({
     required this.budget,
     required this.progress,
+    required this.accountName,
     required this.onEdit,
     required this.onDelete,
   });
 
   final FinancialBudget budget;
   final BudgetProgress progress;
+  final String? accountName;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -203,9 +211,12 @@ class _BudgetCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        budget.categoryIds.isEmpty
-                            ? 'All expense categories'
-                            : budget.categoryIds.join(', '),
+                        [
+                          budget.categoryIds.isEmpty
+                              ? 'All expense categories'
+                              : budget.categoryIds.join(', '),
+                          accountName ?? 'All accounts',
+                        ].join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall,
@@ -345,6 +356,8 @@ Future<void> _editBudget(
   final formKey = GlobalKey<FormState>();
   var currency = existing?.currencyCode ?? finance.preferredCurrency;
   var selectedCategories = <String>{...?existing?.categoryIds};
+  var accountId = existing?.accountId;
+  var accountScope = existing?.accountId ?? '__all_accounts__';
   var alertPercentage = existing?.alertPercentage ?? 70;
   var start =
       existing?.startDate ??
@@ -410,6 +423,31 @@ Future<void> _editBudget(
                         .toList(),
                     onChanged: (value) =>
                         setState(() => currency = value ?? currency),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    initialValue: accountScope,
+                    decoration: const InputDecoration(
+                      labelText: 'Account scope',
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: '__all_accounts__',
+                        child: Text('All accounts'),
+                      ),
+                      ...finance.accounts.map(
+                        (account) => DropdownMenuItem(
+                          value: account.id,
+                          child: Text(account.name),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() {
+                      accountScope = value ?? '__all_accounts__';
+                      accountId = accountScope == '__all_accounts__'
+                          ? null
+                          : accountScope;
+                    }),
                   ),
                   const SizedBox(height: 14),
                   Align(
@@ -522,6 +560,7 @@ Future<void> _editBudget(
                     currencyCode: currency,
                     startDate: start,
                     endDate: end,
+                    accountId: accountId,
                     categoryIds: selectedCategories.toList()..sort(),
                     alertPercentage: alertPercentage,
                     createdAt: existing?.createdAt ?? now,

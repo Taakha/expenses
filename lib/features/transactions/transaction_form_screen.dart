@@ -18,6 +18,7 @@ import '../../core/widgets/glass_container.dart';
 import '../../core/widgets/glass_scaffold.dart';
 import '../../core/widgets/glass_text_field.dart';
 import '../../core/widgets/screen_header.dart';
+import '../../app/routes/route_names.dart';
 import '../../data/models/finance_models.dart';
 import '../../data/repositories/finance_repository.dart';
 
@@ -283,6 +284,15 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         if (await file.exists()) await file.delete();
       }
       if (!mounted) return;
+      final openBudgets = _type == TransactionType.expense
+          ? await _showBudgetFollowup(context, finance, transaction)
+          : false;
+      if (!mounted) return;
+      if (openBudgets) {
+        Navigator.pop(context);
+        await Navigator.pushNamed(context, RouteNames.budgets);
+        return;
+      }
       showAppMessage(
         context,
         widget.existing == null
@@ -294,6 +304,75 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+
+    Future<bool> _showBudgetFollowup(
+      BuildContext context,
+      FinanceController finance,
+      FinancialTransaction transaction,
+    ) async {
+      final matchingBudgets = finance.budgets.where((budget) {
+        final endOfDay = DateTime(
+          budget.endDate.year,
+          budget.endDate.month,
+          budget.endDate.day,
+          23,
+          59,
+          59,
+          999,
+        );
+        return !budget.isArchived &&
+            budget.currencyCode == transaction.currencyCode &&
+            !transaction.occurredAt.isBefore(budget.startDate) &&
+            !transaction.occurredAt.isAfter(endOfDay) &&
+            (budget.accountId == null ||
+                budget.accountId == transaction.accountId) &&
+            (budget.categoryIds.isEmpty ||
+                budget.categoryIds.contains(transaction.category));
+      }).toList()
+        ..sort((left, right) {
+          final leftPriority =
+              (left.accountId == null ? 0 : 2) +
+              (left.categoryIds.isEmpty ? 0 : 1);
+          final rightPriority =
+              (right.accountId == null ? 0 : 2) +
+              (right.categoryIds.isEmpty ? 0 : 1);
+          final priorityOrder = rightPriority.compareTo(leftPriority);
+          if (priorityOrder != 0) return priorityOrder;
+          final dateOrder = (left.createdAt ?? DateTime(1970)).compareTo(
+            right.createdAt ?? DateTime(1970),
+          );
+          return dateOrder != 0 ? dateOrder : left.id.compareTo(right.id);
+        });
+
+      final budget = matchingBudgets.firstOrNull;
+      final progress = budget == null ? null : finance.budgetProgress(budget);
+      final exceeded = progress != null && progress.remainingMinor < 0;
+      if (budget != null && !exceeded) return false;
+      if (!context.mounted) return false;
+      return await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(exceeded ? 'Budget exceeded' : 'No matching budget'),
+              content: Text(
+                exceeded
+                    ? 'You have spent ${formatMinorUnits(progress!.spentMinor, budget.currencyCode)} against your ${formatMinorUnits(budget.limitMinor, budget.currencyCode)} ${budget.name} budget. This expense was saved.'
+                    : 'This expense was saved. Create a ${transaction.category} budget to track future spending.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(exceeded ? 'Got it' : 'Not now'),
+                ),
+                if (!exceeded)
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Create budget'),
+                  ),
+              ],
+            ),
+          ) ??
+          false;
     }
   }
 

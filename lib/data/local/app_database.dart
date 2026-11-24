@@ -27,7 +27,7 @@ class AppDatabase {
     final databasePath = await getDatabasesPath();
     _database = await openDatabase(
       '$databasePath/moneywise.db',
-      version: 2,
+      version: 3,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _createSchema,
       onUpgrade: _upgradeSchema,
@@ -119,6 +119,7 @@ class AppDatabase {
         currency_code TEXT NOT NULL,
         start_date INTEGER NOT NULL,
         end_date INTEGER NOT NULL,
+        account_id TEXT,
         category_ids TEXT NOT NULL DEFAULT '',
         alert_percentage INTEGER NOT NULL DEFAULT 70,
         is_archived INTEGER NOT NULL DEFAULT 0,
@@ -131,6 +132,9 @@ class AppDatabase {
     ''');
     await db.execute(
       'CREATE INDEX budgets_user_idx ON budgets(user_id, is_archived)',
+    );
+    await db.execute(
+      'CREATE INDEX budgets_match_idx ON budgets(user_id, is_archived, currency_code, start_date, end_date, account_id)',
     );
     await db.execute('''
       CREATE TABLE savings_goals (
@@ -317,6 +321,12 @@ class AppDatabase {
       await _createTransactionIndexes(db);
       await _createReceiptIndexes(db);
       await _createSyncQueueIndexes(db);
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE budgets ADD COLUMN account_id TEXT');
+      await db.execute(
+        'CREATE INDEX budgets_match_idx ON budgets(user_id, is_archived, currency_code, start_date, end_date, account_id)',
+      );
     }
   }
 

@@ -71,9 +71,9 @@ class _AuthGateState extends State<_AuthGate> {
   void initState() {
     super.initState();
     _onboardingComplete = Future.value(
-      context
-              .read<SharedPreferences>()
-              .getBool('moneywise.onboardingComplete') ??
+      context.read<SharedPreferences>().getBool(
+            'moneywise.onboardingComplete',
+          ) ??
           false,
     );
   }
@@ -126,7 +126,9 @@ class _FinanceSessionState extends State<_FinanceSession> {
   @override
   void initState() {
     super.initState();
-    unawaited(_initialize());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_initialize());
+    });
   }
 
   Future<void> _initialize() {
@@ -146,7 +148,9 @@ class _FinanceSessionState extends State<_FinanceSession> {
           return const NavigationShell();
         }
         if (finance.isLoading) {
-          return const SplashScreen(message: 'Preparing your offline ledger...');
+          return const SplashScreen(
+            message: 'Preparing your offline ledger...',
+          );
         }
         return GlassScaffold(
           padding: const EdgeInsets.all(24),

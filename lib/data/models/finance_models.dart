@@ -320,6 +320,7 @@ class FinancialBudget {
     required this.currencyCode,
     required this.startDate,
     required this.endDate,
+    this.accountId,
     this.categoryIds = const [],
     this.alertPercentage = 70,
     this.isArchived = false,
@@ -335,6 +336,7 @@ class FinancialBudget {
   final String currencyCode;
   final DateTime startDate;
   final DateTime endDate;
+  final String? accountId;
   final List<String> categoryIds;
   final int alertPercentage;
   final bool isArchived;
@@ -351,6 +353,7 @@ class FinancialBudget {
       currencyCode: map['currency_code']! as String,
       startDate: _dateTime(map['start_date']) ?? DateTime.now(),
       endDate: _dateTime(map['end_date']) ?? DateTime.now(),
+      accountId: map['account_id'] as String?,
       categoryIds: _decodeStringList(map['category_ids']),
       alertPercentage: map['alert_percentage'] as int? ?? 70,
       isArchived: (map['is_archived'] as int? ?? 0) == 1,
@@ -368,6 +371,7 @@ class FinancialBudget {
     'currency_code': currencyCode,
     'start_date': startDate.millisecondsSinceEpoch,
     'end_date': endDate.millisecondsSinceEpoch,
+    'account_id': accountId,
     'category_ids': categoryIds.join('|'),
     'alert_percentage': alertPercentage,
     'is_archived': isArchived ? 1 : 0,
@@ -384,6 +388,7 @@ class FinancialBudget {
     'currencyCode': currencyCode,
     'startDate': startDate.millisecondsSinceEpoch,
     'endDate': endDate.millisecondsSinceEpoch,
+    'accountId': accountId,
     'categoryIds': categoryIds,
     'alertPercentage': alertPercentage,
     'isArchived': isArchived,

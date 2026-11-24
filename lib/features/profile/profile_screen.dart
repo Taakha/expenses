@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/routes/route_names.dart';
+import '../../core/constants/app_icons.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/finance_controller.dart';
 import '../../core/theme/app_colors.dart';
@@ -24,7 +25,7 @@ class ProfileScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.only(top: 10, bottom: 28),
         children: [
-          const ScreenHeader(title: 'Profile', subtitle: 'Your account and preferences.'),
+          const ScreenHeader(title: 'More', subtitle: 'Your account, tools and preferences.'),
           GlassContainer(
             padding: const EdgeInsets.all(17),
             radius: 21,
@@ -57,44 +58,56 @@ class ProfileScreen extends StatelessWidget {
                 IconButton(
                   tooltip: 'Edit profile',
                   onPressed: () => Navigator.pushNamed(context, RouteNames.settings),
-                  icon: const Icon(Icons.edit_outlined),
+                  icon: const Icon(AppIcons.editProfile),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 11),
           _ProfileLink(
-            icon: Icons.account_balance_wallet_outlined,
+            icon: AppIcons.accountCash,
             title: 'Accounts',
             subtitle: '${finance.activeAccounts.length} active accounts',
             onTap: () => Navigator.pushNamed(context, RouteNames.accounts),
           ),
           _ProfileLink(
-            icon: Icons.notifications_none_rounded,
+            icon: AppIcons.notification,
             title: 'Notifications',
             subtitle: '${finance.notifications.where((item) => !item.isRead).length} unread',
             onTap: () => Navigator.pushNamed(context, RouteNames.notifications),
           ),
           _ProfileLink(
-            icon: Icons.category_outlined,
+            icon: AppIcons.category,
             title: 'Categories',
             subtitle: 'Manage income and expense labels',
             onTap: () => Navigator.pushNamed(context, RouteNames.categories),
           ),
           _ProfileLink(
-            icon: Icons.handshake_outlined,
+            icon: AppIcons.savingsGoal,
+            title: 'Savings',
+            subtitle: '${finance.goals.length} savings goals',
+            onTap: () => Navigator.pushNamed(context, RouteNames.savings),
+          ),
+          _ProfileLink(
+            icon: AppIcons.receipt,
+            title: 'Receipts',
+            subtitle: 'Browse transactions and attached receipts',
+            onTap: () => Navigator.pushNamed(context, RouteNames.transactions),
+          ),
+          _ProfileLink(
+            icon: AppIcons.debtBorrowed,
             title: 'Debts',
             subtitle: 'Track money owed and due',
             onTap: () => Navigator.pushNamed(context, RouteNames.debts),
           ),
           _ProfileLink(
-            icon: Icons.autorenew_rounded,
+            icon: AppIcons.recurring,
             title: 'Recurring',
             subtitle: 'Review scheduled transactions',
             onTap: () => Navigator.pushNamed(context, RouteNames.recurring),
           ),
           _ProfileLink(
-            icon: Icons.cloud_sync_outlined,
+            icon: AppIcons.conflict,
             title: 'Sync conflicts',
             subtitle: finance.conflicts.isEmpty
                 ? 'All changes are in sync'
@@ -102,13 +115,13 @@ class ProfileScreen extends StatelessWidget {
             onTap: () => Navigator.pushNamed(context, RouteNames.conflicts),
           ),
           _ProfileLink(
-            icon: Icons.backup_outlined,
+            icon: AppIcons.backup,
             title: 'Backup and restore',
             subtitle: 'Create a local data backup',
             onTap: () => Navigator.pushNamed(context, RouteNames.backup),
           ),
           _ProfileLink(
-            icon: Icons.settings_outlined,
+            icon: AppIcons.settings,
             title: 'Settings',
             subtitle: 'Appearance, currency and security',
             onTap: () => Navigator.pushNamed(context, RouteNames.settings),
@@ -129,7 +142,7 @@ class ProfileScreen extends StatelessWidget {
                 if (context.mounted) showAppMessage(context, error.toString(), isError: true);
               }
             },
-            icon: const Icon(Icons.logout_rounded),
+            icon: const Icon(AppIcons.signOut),
             label: const Text('Sign out'),
           ),
         ],
@@ -163,7 +176,7 @@ class _ProfileLink extends StatelessWidget {
           leading: Icon(icon, color: AppColors.tealDark),
           title: Text(title, style: Theme.of(context).textTheme.titleMedium),
           subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-          trailing: const Icon(Icons.chevron_right_rounded),
+          trailing: const Icon(AppIcons.chevronRight),
           onTap: onTap,
         ),
       ),
