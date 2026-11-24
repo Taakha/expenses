@@ -103,9 +103,15 @@ Widget _app(_FakeFinanceController finance, {FinancialTransaction? existing}) {
   );
 }
 
-Finder _field(String label) => find.byWidgetPredicate(
-  (widget) => widget is TextFormField && widget.decoration?.labelText == label,
-);
+Finder _field(String label) {
+  final decoration = find.byWidgetPredicate(
+    (widget) =>
+        widget is InputDecorator && widget.decoration.labelText == label,
+  );
+  return find
+      .ancestor(of: decoration, matching: find.byType(TextFormField))
+      .first;
+}
 
 FinancialAccount _cashAccount() => const FinancialAccount(
   id: 'cash',

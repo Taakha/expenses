@@ -11,7 +11,12 @@ class AppDatabase {
     'CREATE INDEX transactions_type_date_idx ON transactions(user_id, status, type, transaction_date DESC, id DESC)',
     'CREATE INDEX transactions_category_date_idx ON transactions(user_id, status, category, transaction_date DESC, id DESC)',
     'CREATE INDEX transactions_destination_idx ON transactions(user_id, destination_account_id, status, transaction_date DESC)',
+  ];
+  static const _receiptIndexes = [
     'CREATE INDEX receipts_transaction_idx ON receipts(user_id, transaction_id, created_at)',
+  ];
+  static const _syncQueueIndexes = [
+    'CREATE INDEX sync_queue_user_id_idx ON sync_queue(user_id, id)',
   ];
 
   Database? _database;
@@ -261,7 +266,7 @@ class AppDatabase {
         FOREIGN KEY(transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
       )
     ''');
-    await db.execute(_transactionIndexes.last);
+    await _createReceiptIndexes(db);
     await db.execute('''
       CREATE TABLE backup_records (
         id TEXT PRIMARY KEY,
@@ -288,6 +293,7 @@ class AppDatabase {
         UNIQUE(user_id, collection_name, record_id)
       )
     ''');
+    await _createSyncQueueIndexes(db);
     await db.execute('''
       CREATE TABLE sync_conflicts (
         id TEXT PRIMARY KEY,
@@ -302,13 +308,32 @@ class AppDatabase {
     ''');
   }
 
-  Future<void> _upgradeSchema(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) await _createTransactionIndexes(db);
+  Future<void> _upgradeSchema(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      await _createTransactionIndexes(db);
+      await _createReceiptIndexes(db);
+      await _createSyncQueueIndexes(db);
+    }
   }
 
   Future<void> _createTransactionIndexes(DatabaseExecutor db) async {
     for (final statement in _transactionIndexes) {
-      if (statement == _transactionIndexes.last) continue;
+      await db.execute(statement);
+    }
+  }
+
+  Future<void> _createReceiptIndexes(DatabaseExecutor db) async {
+    for (final statement in _receiptIndexes) {
+      await db.execute(statement);
+    }
+  }
+
+  Future<void> _createSyncQueueIndexes(DatabaseExecutor db) async {
+    for (final statement in _syncQueueIndexes) {
       await db.execute(statement);
     }
   }

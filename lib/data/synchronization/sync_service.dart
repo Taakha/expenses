@@ -31,64 +31,69 @@ class SyncService {
   Future<void> synchronize(String uid) async {
     if (!await hasConnection()) {
       state = SyncState.offline;
-      pendingCount = (await _repository.pendingSync(uid)).length;
+      pendingCount = await _repository.pendingSyncCount(uid);
       return;
     }
 
     state = SyncState.synchronizing;
     lastError = null;
-    final pending = await _repository.pendingSync(uid);
-    for (final item in pending) {
-      final queueId = item['id']! as int;
-      final collection = item['collection_name']! as String;
-      final id = item['record_id']! as String;
-      final operation = item['operation']! as String;
-      try {
-        final reference = _firestore
-            .collection('users')
-            .doc(uid)
-            .collection(collection)
-            .doc(id);
-        if (operation == 'delete') {
-          await reference.delete();
-        } else {
-          final local = await _repository.recordForSync(collection, id, uid);
-          if (local == null) {
+    var afterId = 0;
+    while (true) {
+      final pending = await _repository.pendingSync(uid, afterId: afterId);
+      if (pending.isEmpty) break;
+      for (final item in pending) {
+        final queueId = item['id']! as int;
+        afterId = queueId;
+        final collection = item['collection_name']! as String;
+        final id = item['record_id']! as String;
+        final operation = item['operation']! as String;
+        try {
+          final reference = _firestore
+              .collection('users')
+              .doc(uid)
+              .collection(collection)
+              .doc(id);
+          if (operation == 'delete') {
             await reference.delete();
           } else {
-            final cloud = await reference.get();
-            if (cloud.exists) {
-              final remoteData = cloud.data();
-              final localVersion = (local['version'] as int?) ?? 1;
-              final remoteVersion = (remoteData?['version'] as int?) ?? 1;
-              if (remoteVersion >= localVersion &&
-                  !_sameRecord(local, remoteData)) {
-                lastError =
-                    'A $collection record changed on another device. Resolve the conflict before syncing.';
-                await _repository.markSyncConflict(
-                  uid: uid,
-                  collection: collection,
-                  recordId: id,
-                  localRecord: local,
-                  remoteRecord: remoteData ?? const {},
-                );
-                continue;
+            final local = await _repository.recordForSync(collection, id, uid);
+            if (local == null) {
+              await reference.delete();
+            } else {
+              final cloud = await reference.get();
+              if (cloud.exists) {
+                final remoteData = cloud.data();
+                final localVersion = (local['version'] as int?) ?? 1;
+                final remoteVersion = (remoteData?['version'] as int?) ?? 1;
+                if (remoteVersion >= localVersion &&
+                    !_sameRecord(local, remoteData)) {
+                  lastError =
+                      'A $collection record changed on another device. Resolve the conflict before syncing.';
+                  await _repository.markSyncConflict(
+                    uid: uid,
+                    collection: collection,
+                    recordId: id,
+                    localRecord: local,
+                    remoteRecord: remoteData ?? const {},
+                  );
+                  continue;
+                }
               }
+              final clean = Map<String, Object?>.from(local)
+                ..remove('sync_status');
+              await reference.set(clean);
             }
-            final clean = Map<String, Object?>.from(local)
-              ..remove('sync_status');
-            await reference.set(clean);
           }
+          await _repository.markSynced(uid, collection, id);
+        } catch (error) {
+          lastError = error.toString();
+          await _repository.markSyncFailed(queueId, lastError!);
         }
-        await _repository.markSynced(uid, collection, id);
-      } catch (error) {
-        lastError = error.toString();
-        await _repository.markSyncFailed(queueId, lastError!);
       }
     }
 
     await _pullRemote(uid);
-    pendingCount = (await _repository.pendingSync(uid)).length;
+    pendingCount = await _repository.pendingSyncCount(uid);
     final conflicts = await _repository.syncConflicts(uid);
     if (conflicts.isNotEmpty && lastError == null) {
       lastError =
@@ -101,17 +106,29 @@ class SyncService {
 
   Future<void> _pullRemote(String uid) async {
     for (final collection in FinanceRepository.syncCollections) {
+      final reference = _firestore
+          .collection('users')
+          .doc(uid)
+          .collection(collection);
+      QueryDocumentSnapshot<Map<String, dynamic>>? lastDocument;
       try {
-        final snapshot = await _firestore
-            .collection('users')
-            .doc(uid)
-            .collection(collection)
-            .get();
-        for (final document in snapshot.docs) {
-          final data = Map<String, Object?>.from(document.data());
-          data['id'] = document.id;
-          data['user_id'] ??= uid;
-          await _repository.applyRemoteRecord(uid, collection, data);
+        while (true) {
+          Query<Map<String, dynamic>> query = reference
+              .orderBy(FieldPath.documentId)
+              .limit(500);
+          if (lastDocument != null) {
+            query = query.startAfterDocument(lastDocument);
+          }
+          final snapshot = await query.get();
+          if (snapshot.docs.isEmpty) break;
+          for (final document in snapshot.docs) {
+            final data = Map<String, Object?>.from(document.data());
+            data['id'] = document.id;
+            data['user_id'] ??= uid;
+            await _repository.applyRemoteRecord(uid, collection, data);
+          }
+          lastDocument = snapshot.docs.last;
+          if (snapshot.docs.length < 500) break;
         }
       } catch (error) {
         lastError ??= error.toString();

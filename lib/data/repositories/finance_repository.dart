@@ -1360,15 +1360,28 @@ class FinanceRepository {
     });
   }
 
-  Future<List<Map<String, Object?>>> pendingSync(String uid) async {
+  Future<List<Map<String, Object?>>> pendingSync(
+    String uid, {
+    int afterId = 0,
+    int pageSize = 100,
+  }) async {
     final db = await _database.database;
     return db.query(
       'sync_queue',
-      where: 'user_id = ?',
-      whereArgs: [uid],
-      orderBy: 'created_at',
-      limit: 100,
+      where: 'user_id = ? AND id > ?',
+      whereArgs: [uid, afterId],
+      orderBy: 'id',
+      limit: pageSize,
     );
+  }
+
+  Future<int> pendingSyncCount(String uid) async {
+    final db = await _database.database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS count FROM sync_queue WHERE user_id = ?',
+      [uid],
+    );
+    return rows.first['count']! as int;
   }
 
   Future<Map<String, Object?>?> recordForSync(

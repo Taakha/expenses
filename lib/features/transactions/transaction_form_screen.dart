@@ -299,14 +299,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final (snapshot, preferredCurrency) =
-        context.select<FinanceController, (FinanceSnapshot?, String)>(
+    final (snapshot, preferredCurrency) = context
+        .select<FinanceController, (FinanceSnapshot?, String)>(
           (finance) => (finance.snapshot, finance.preferredCurrency),
         );
-    final accounts =
-        (snapshot?.accounts ?? const <FinancialAccount>[])
-            .where((account) => !account.isArchived)
-            .toList();
+    final accounts = (snapshot?.accounts ?? const <FinancialAccount>[])
+        .where((account) => !account.isArchived)
+        .toList();
     final selectedAccount = _findAccount(accounts, _accountId);
     final selectedDestination = _findAccount(accounts, _destinationAccountId);
     final isIncome = _type == TransactionType.income;
@@ -402,8 +401,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                         try {
                           parseMinorUnits(
                             value ?? '',
-                            selectedAccount?.currencyCode ??
-                                preferredCurrency,
+                            selectedAccount?.currencyCode ?? preferredCurrency,
                           );
                           return null;
                         } on FormatException catch (error) {
@@ -572,8 +570,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                         ),
                       ),
                     ),
-                    if (!_receiptsLoaded)
-                      const LinearProgressIndicator(),
+                    if (!_receiptsLoaded) const LinearProgressIndicator(),
                     if (_receipts.isNotEmpty)
                       SizedBox(
                         height: 104,
@@ -610,10 +607,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                                             : () => setState(
                                                 () => _receipts.removeAt(index),
                                               ),
-                                        icon: const Icon(
-                                          Icons.close,
-                                          size: 15,
-                                        ),
+                                        icon: const Icon(Icons.close, size: 15),
                                         visualDensity: VisualDensity.compact,
                                       ),
                                     ),

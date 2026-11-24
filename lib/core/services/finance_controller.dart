@@ -244,7 +244,7 @@ class FinanceController extends ChangeNotifier {
     if (uid == null) return;
     snapshot = await _repository.loadSnapshot(uid);
     preferredCurrency = await _repository.preferredCurrency(uid);
-    pendingSyncCount = (await _repository.pendingSync(uid)).length;
+    pendingSyncCount = await _repository.pendingSyncCount(uid);
     conflicts = await _repository.syncConflicts(uid);
     notifyListeners();
   }
