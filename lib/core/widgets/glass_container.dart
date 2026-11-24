@@ -63,7 +63,7 @@ class GlassContainer extends StatelessWidget {
                 width: 1,
               ),
             ),
-            child: child,
+            child: Material(color: Colors.transparent, child: child),
           ),
         ),
       ),

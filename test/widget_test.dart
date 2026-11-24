@@ -1,6 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moneywise/app/app.dart';
+import 'package:moneywise/core/theme/app_theme.dart';
 import 'package:moneywise/core/theme/theme_provider.dart';
+import 'package:moneywise/core/widgets/glass_container.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -25,5 +28,27 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('missing Firebase options'), findsOneWidget);
+  });
+
+  testWidgets('glass panels provide a Material surface for list tiles', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: GlassContainer(
+            child: CheckboxListTile(
+              dense: true,
+              value: false,
+              onChanged: (_) {},
+              title: const Text('Terms'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
   });
 }
