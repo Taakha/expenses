@@ -178,12 +178,18 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final finance = context.watch<FinanceController>();
-    final accounts = finance.activeAccounts;
+    final (snapshot, preferredCurrency) =
+        context.select<FinanceController, (FinanceSnapshot?, String)>(
+          (finance) => (finance.snapshot, finance.preferredCurrency),
+        );
+    final accounts =
+        (snapshot?.accounts ?? const <FinancialAccount>[])
+            .where((account) => !account.isArchived)
+            .toList();
     final selectedAccount = _findAccount(accounts, _accountId);
     final selectedDestination = _findAccount(accounts, _destinationAccountId);
     final isIncome = _type == TransactionType.income;
-    final categories = finance.categories
+    final categories = (snapshot?.categories ?? const <Map<String, Object?>>[])
         .where(
           (category) =>
               category['type'] == (isIncome ? 'income' : 'expense') &&
@@ -266,7 +272,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                     GlassTextField(
                       controller: _amount,
                       label:
-                          'Amount (${selectedAccount?.currencyCode ?? finance.preferredCurrency})',
+                          'Amount (${selectedAccount?.currencyCode ?? preferredCurrency})',
                       icon: Icons.payments_outlined,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
@@ -276,7 +282,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                           parseMinorUnits(
                             value ?? '',
                             selectedAccount?.currencyCode ??
-                                finance.preferredCurrency,
+                                preferredCurrency,
                           );
                           return null;
                         } on FormatException catch (error) {
