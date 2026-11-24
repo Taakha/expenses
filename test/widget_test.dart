@@ -1,18 +1,27 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moneywise/main.dart';
+import 'package:moneywise/core/theme/theme_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('Firebase setup errors are shown with actionable guidance', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(
-      MoneyWiseApp(startupError: StateError('missing Firebase options')),
+      MoneyWiseApp(
+        preferences: preferences,
+        themeProvider: ThemeProvider(preferences),
+        startupError: StateError('missing Firebase options'),
+      ),
     );
 
-    expect(find.text('Could not connect to MoneyWise'), findsOneWidget);
+    expect(find.text('Firebase could not start'), findsOneWidget);
     expect(
       find.text(
-        'Firebase could not be initialized for this platform. Check your Firebase platform configuration and try again.',
+        'Check the Firebase configuration for this platform, then restart the app.',
       ),
       findsOneWidget,
     );

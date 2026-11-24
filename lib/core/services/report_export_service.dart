@@ -70,7 +70,7 @@ class ReportExportService {
         margin: const pw.EdgeInsets.all(32),
         build: (context) => [
           pw.Text(
-            'Money Wise · Financial Report',
+            'Money Wise - Financial Report',
             style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
           ),
           pw.SizedBox(height: 5),
@@ -139,7 +139,7 @@ class ReportExportService {
             ),
           pw.SizedBox(height: 15),
           pw.Text(
-            'Values are reported in each transaction’s original currency. Transfers are excluded from income and expense totals.',
+            "Values are reported in each transaction's original currency. Transfers are excluded from income and expense totals.",
             style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
           ),
         ],

@@ -1,77 +1,16 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function ownsUserData(userId) {
+    function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    function validCategory(category) {
-      return category in [
-        'Food',
-        'Transport',
-        'Shopping',
-        'Bills',
-        'Health',
-        'Entertainment',
-        'Income',
-        'Other'
-      ];
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
     }
 
-    match /users/{userId}/transactions/{transactionId} {
-      allow read: if ownsUserData(userId);
-      allow create, update: if ownsUserData(userId)
-        && request.resource.data.keys().hasOnly([
-          'title',
-          'category',
-          'amount',
-          'date',
-          'isIncome',
-          'note',
-          'createdAt'
-        ])
-        && request.resource.data.keys().hasAll([
-          'title',
-          'category',
-          'amount',
-          'date',
-          'isIncome',
-          'note'
-        ])
-        && request.resource.data.title is string
-        && request.resource.data.title.size() > 0
-        && request.resource.data.title.size() <= 100
-        && validCategory(request.resource.data.category)
-        && request.resource.data.amount is number
-        && request.resource.data.amount > 0
-        && request.resource.data.date is timestamp
-        && request.resource.data.isIncome is bool
-        && request.resource.data.note is string
-        && request.resource.data.note.size() <= 500
-        && (
-          request.resource.data.isIncome
-            && request.resource.data.category in ['Income', 'Other']
-          || !request.resource.data.isIncome
-            && request.resource.data.category != 'Income'
-        );
-      allow delete: if ownsUserData(userId);
-    }
-
-    match /users/{userId}/budgets/{budgetId} {
-      allow read: if ownsUserData(userId);
-      allow create, update: if ownsUserData(userId)
-        && request.resource.data.keys().hasOnly([
-          'category',
-          'limit',
-          'updatedAt'
-        ])
-        && request.resource.data.keys().hasAll(['category', 'limit'])
-        && validCategory(request.resource.data.category)
-        && request.resource.data.category != 'Income'
-        && budgetId == request.resource.data.category
-        && request.resource.data.limit is number
-        && request.resource.data.limit > 0;
-      allow delete: if ownsUserData(userId);
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
     }
 
     match /{document=**} {

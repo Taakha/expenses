@@ -1,8 +1,11 @@
 # MoneyWise
 
-MoneyWise is a personal spending tracker built with Flutter and Firebase. It
-includes email/password accounts, a monthly income and expense overview,
-transaction history, category budgets, and password reset.
+MoneyWise is an offline-first personal finance tracker built with Flutter,
+SQLite, and Firebase. It supports multiple accounts and currencies, income and
+expense transactions, budgets, savings goals, debts, recurring transactions,
+reports, notifications, and local backups. Changes are saved to the local
+ledger first and queued for Firestore synchronization when a connection is
+available.
 
 ## Firebase setup
 
@@ -26,10 +29,9 @@ transaction history, category budgets, and password reset.
    flutter run
    ```
 
-Transactions and budgets are stored under
-`users/{authenticatedUserId}/transactions` and
-`users/{authenticatedUserId}/budgets`. Firestore rules prevent users from
-accessing another account's records.
+Each user's profile and financial collections are stored under
+`users/{authenticatedUserId}`. The Firestore rules allow authenticated users to
+access only their own profile and subcollections.
 
 MoneyWise is a manual tracking tool. It does not connect to banks or provide
 financial advice.

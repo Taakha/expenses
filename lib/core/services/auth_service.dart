@@ -107,6 +107,7 @@ class AuthService {
   Future<void> updateProfile({
     required String fullName,
     required String phoneNumber,
+    required String currencyCode,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw StateError('A signed-in account is required.');
@@ -116,9 +117,21 @@ class AuthService {
       fullName: fullName.trim(),
       email: user.email ?? '',
       phoneNumber: phoneNumber.trim(),
-      currencyCode: 'UGX',
+      currencyCode: currencyCode,
     );
     await user.reload();
+  }
+
+  Future<void> updatePreferredCurrency(String currencyCode) async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('A signed-in account is required.');
+    await _saveProfile(
+      uid: user.uid,
+      fullName: user.displayName ?? '',
+      email: user.email ?? '',
+      phoneNumber: user.phoneNumber ?? '',
+      currencyCode: currencyCode,
+    );
   }
 
   Future<void> changePassword(String password) async {
@@ -147,7 +160,7 @@ class AuthService {
       'full_name': fullName,
       'email': email,
       'phone_number': phoneNumber,
-      if (isNew) 'preferred_currency': currencyCode,
+      'preferred_currency': currencyCode,
       'updated_at': DateTime.now().millisecondsSinceEpoch,
       if (isNew) 'created_at': DateTime.now().millisecondsSinceEpoch,
     }, SetOptions(merge: true));

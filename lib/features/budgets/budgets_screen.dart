@@ -22,7 +22,11 @@ class BudgetsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final finance = context.watch<FinanceController>();
     final totals = <String, ({int limit, int spent})>{};
+    final today = DateTime.now();
     for (final budget in finance.budgets) {
+      if (today.isBefore(budget.startDate) || today.isAfter(budget.endDate)) {
+        continue;
+      }
       final progress = finance.budgetProgress(budget);
       final previous = totals[budget.currencyCode] ?? (limit: 0, spent: 0);
       totals[budget.currencyCode] = (
@@ -114,7 +118,7 @@ class _BudgetSummary extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Monthly plan · $currency', style: Theme.of(context).textTheme.titleMedium),
+                Text('Active allocation · $currency', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 3),
                 Text('${formatMinorUnits(spent, currency)} spent of ${formatMinorUnits(limit, currency)}', style: Theme.of(context).textTheme.bodySmall),
               ],
