@@ -669,6 +669,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   }
 
   Future<List<_ReceiptDraft>> _persistReceiptDrafts(String uid) async {
+    if (_receipts.isEmpty) return [];
     final documents = await getApplicationDocumentsDirectory();
     final directory = Directory(
       path.join(documents.path, 'moneywise', 'receipts', uid),
