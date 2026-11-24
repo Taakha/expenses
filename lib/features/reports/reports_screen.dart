@@ -40,12 +40,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final finance = context.watch<FinanceController>();
     final currency = _currency ?? finance.preferredCurrency;
     final now = DateTime.now();
-    final range = _reportRange(
-      _period,
-      now,
-      _customFrom,
-      _customThrough,
-    );
+    final range = _reportRange(_period, now, _customFrom, _customThrough);
     final from = range.from;
     final through = range.through;
     final reportKey =
@@ -266,10 +261,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 blur: 7,
                 child: Row(
                   children: [
-                    const Icon(
-                      AppIcons.cashFlow,
-                      color: AppColors.tealDark,
-                    ),
+                    const Icon(AppIcons.cashFlow, color: AppColors.tealDark),
                     const SizedBox(width: 9),
                     Expanded(
                       child: Text(
@@ -284,7 +276,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       blur: 7,
                       child: Row(
                         children: [
-                          const Icon(AppIcons.savingsGoal, color: AppColors.tealDark),
+                          const Icon(
+                            AppIcons.savingsGoal,
+                            color: AppColors.tealDark,
+                          ),
                           const SizedBox(width: 9),
                           Expanded(
                             child: Text(
@@ -331,10 +326,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 blur: 7,
                 child: Row(
                   children: [
-                    const Icon(
-                      AppIcons.savingsGoal,
-                      color: AppColors.tealDark,
-                    ),
+                    const Icon(AppIcons.savingsGoal, color: AppColors.tealDark),
                     const SizedBox(width: 9),
                     Expanded(
                       child: Text(
@@ -470,7 +462,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       bucketStarts.map(
         (month) => finance.summaryFor(
           from: month,
-          through: _bucketEnd(period, month, through),
+          through: _bucketEnd(period, month, from, through),
           accountId: accountId,
         ),
       ),
@@ -487,10 +479,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       categories: await categoriesFuture,
       monthlySummaries: [
         for (var index = 0; index < bucketStarts.length; index++)
-          (
-            month: bucketStarts[index],
-            summary: monthlySummaries[index],
-          ),
+          (month: bucketStarts[index], summary: monthlySummaries[index]),
       ],
       recentTransactions: recent.transactions,
     );
@@ -708,14 +697,12 @@ class _MonthlyReportChart extends StatelessWidget {
                         through,
                       );
                       final type = rod == 0 ? 'income' : 'expense';
-                      final amount = rod == 0
-                          ? bucket.income
-                          : bucket.expense;
+                      final amount = rod == 0 ? bucket.income : bucket.expense;
                       _showReportTransactions(
                         context,
                         finance: finance,
                         title:
-                            '${_monthLabel(bucket.month)} $type · ${formatMinorUnits(amount, currency)}',
+                            '${_bucketLabel(period, bucket.month, from, through)} $type · ${formatMinorUnits(amount, currency)}',
                         currency: currency,
                         from: bucketFrom,
                         through: bucketThrough,
@@ -810,17 +797,13 @@ class _SpendingTrendChart extends StatelessWidget {
       for (var index = 0; index < buckets.length; index++)
         FlSpot(
           index.toDouble(),
-          (buckets[index].summary.expensesByCurrency[currency] ?? 0)
-              .toDouble(),
+          (buckets[index].summary.expensesByCurrency[currency] ?? 0).toDouble(),
         ),
     ];
     final maxAmount = [
       ...incomes.map((spot) => spot.y),
       ...expenses.map((spot) => spot.y),
-    ].fold<double>(
-      0,
-      (current, value) => value > current ? value : current,
-    );
+    ].fold<double>(0, (current, value) => value > current ? value : current);
     return GlassContainer(
       padding: const EdgeInsets.fromLTRB(13, 14, 14, 9),
       radius: 18,
@@ -847,7 +830,10 @@ class _SpendingTrendChart extends StatelessWidget {
                 LineChartData(
                   minY: 0,
                   maxY: maxAmount * 1.18,
-                  gridData: const FlGridData(show: true, drawVerticalLine: false),
+                  gridData: const FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                  ),
                   borderData: FlBorderData(show: false),
                   titlesData: FlTitlesData(
                     topTitles: const AxisTitles(
@@ -966,85 +952,84 @@ class _CategoryReport extends StatelessWidget {
           else ...[
             SizedBox(
               height: 180,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    PieChart(
-                      PieChartData(
-                        centerSpaceRadius: 44,
-                        sectionsSpace: 3,
-                        sections: [
-                          for (var index = 0; index < categories.length; index++)
-                            PieChartSectionData(
-                              value: categories[index].amountMinor.toDouble(),
-                              color: _colors[index % _colors.length],
-                              radius: 35,
-                              title: total > 0
-                                  ? '${categories[index].amountMinor * 100 ~/ total}%'
-                                  : '',
-                              titleStyle: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  PieChart(
+                    PieChartData(
+                      centerSpaceRadius: 44,
+                      sectionsSpace: 3,
+                      sections: [
+                        for (var index = 0; index < categories.length; index++)
+                          PieChartSectionData(
+                            value: categories[index].amountMinor.toDouble(),
+                            color: _colors[index % _colors.length],
+                            radius: 35,
+                            title: total > 0
+                                ? '${categories[index].amountMinor * 100 ~/ total}%'
+                                : '',
+                            titleStyle: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
                             ),
-                        ],
-                      ),
-                      duration: const Duration(milliseconds: 350),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Total',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        Text(
-                          formatMinorUnits(total, currency),
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                          ),
                       ],
                     ),
-                  ],
-                ),
+                    duration: const Duration(milliseconds: 350),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Total',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Text(
+                        formatMinorUnits(total, currency),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             ...categories.take(7).toList().asMap().entries.map((entry) {
               final item = entry.value;
-                return InkWell(
-                  borderRadius: BorderRadius.circular(9),
-                  onTap: () => _showReportTransactions(
-                    context,
-                    finance: finance,
-                    title:
-                        '${item.category} · ${formatMinorUnits(item.amountMinor, currency)} · ${item.transactionCount} transactions',
-                    currency: currency,
-                    from: from,
-                    through: through,
-                    accountId: accountId,
-                    category: item.category,
-                    type: 'expense',
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      children: [
-                        _LegendDot(
-                          color: _colors[entry.key % _colors.length],
-                          label: item.category,
-                        ),
-                        const Spacer(),
-                        Text(
-                          formatMinorUnits(item.amountMinor, currency),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
+              return InkWell(
+                borderRadius: BorderRadius.circular(9),
+                onTap: () => _showReportTransactions(
+                  context,
+                  finance: finance,
+                  title:
+                      '${item.category} · ${formatMinorUnits(item.amountMinor, currency)} · ${item.transactionCount} transactions',
+                  currency: currency,
+                  from: from,
+                  through: through,
+                  accountId: accountId,
+                  category: item.category,
+                  type: 'expense',
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Row(
+                    children: [
+                      _LegendDot(
+                        color: _colors[entry.key % _colors.length],
+                        label: item.category,
                       ),
-                      ],
-                    ),
+                      const Spacer(),
+                      Text(
+                        formatMinorUnits(item.amountMinor, currency),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),
@@ -1095,7 +1080,9 @@ Future<void> _showReportTransactions(
                   builder: (context, state) {
                     if (state.hasError) {
                       return Center(
-                        child: Text('Could not load transactions: ${state.error}'),
+                        child: Text(
+                          'Could not load transactions: ${state.error}',
+                        ),
                       );
                     }
                     if (!state.hasData) {
@@ -1202,7 +1189,10 @@ class _BudgetReport extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Budget performance', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Budget performance',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           if (activeBudgets.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 18),
@@ -1268,7 +1258,9 @@ class _SavingsReport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final goals = finance.goals.where((goal) => goal.status == 'active').toList();
+    final goals = finance.goals
+        .where((goal) => goal.status == 'active')
+        .toList();
     return GlassContainer(
       padding: const EdgeInsets.all(14),
       radius: 18,
@@ -1276,7 +1268,10 @@ class _SavingsReport extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Savings progress', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Savings progress',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           if (goals.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 18),
@@ -1326,7 +1321,10 @@ class _RecentActivityReport extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recent activity', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Recent activity',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           if (transactions.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 18),
@@ -1432,7 +1430,11 @@ class _ReportData {
 List<DateTime> _bucketStarts(String period, DateTime from, DateTime through) {
   if (period == 'weekly') {
     return [
-      for (var date = from; !date.isAfter(through); date = date.add(const Duration(days: 1)))
+      for (
+        var date = from;
+        !date.isAfter(through);
+        date = date.add(const Duration(days: 1))
+      )
         DateTime(date.year, date.month, date.day),
     ];
   }
@@ -1454,15 +1456,21 @@ List<DateTime> _bucketStarts(String period, DateTime from, DateTime through) {
   ];
 }
 
-DateTime _bucketEnd(String period, DateTime start, DateTime through) {
+DateTime _bucketEnd(
+  String period,
+  DateTime start,
+  DateTime rangeStart,
+  DateTime rangeEnd,
+) {
   if (period == 'weekly') {
-    return DateTime(start.year, start.month, start.day, 23, 59, 59, 999);
+    final end = DateTime(start.year, start.month, start.day, 23, 59, 59, 999);
+    return end.isAfter(rangeEnd) ? rangeEnd : end;
   }
-  final end = _usesYearBuckets(period, start, through)
+  final end = _usesYearBuckets(period, rangeStart, rangeEnd)
       ? DateTime(start.year + 1, 1)
       : DateTime(start.year, start.month + 1);
   final endOfBucket = end.subtract(const Duration(milliseconds: 1));
-  return endOfBucket.isAfter(through) ? through : endOfBucket;
+  return endOfBucket.isAfter(rangeEnd) ? rangeEnd : endOfBucket;
 }
 
 bool _usesYearBuckets(String period, DateTime from, DateTime through) {

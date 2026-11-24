@@ -305,12 +305,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
 
-    Future<bool> _showBudgetFollowup(
-      BuildContext context,
-      FinanceController finance,
-      FinancialTransaction transaction,
-    ) async {
+  Future<bool> _showBudgetFollowup(
+    BuildContext context,
+    FinanceController finance,
+    FinancialTransaction transaction,
+  ) async {
       final matchingBudgets = finance.budgets.where((budget) {
         final endOfDay = DateTime(
           budget.endDate.year,
@@ -345,35 +346,39 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
           return dateOrder != 0 ? dateOrder : left.id.compareTo(right.id);
         });
 
-      final budget = matchingBudgets.firstOrNull;
-      final progress = budget == null ? null : finance.budgetProgress(budget);
-      final exceeded = progress != null && progress.remainingMinor < 0;
-      if (budget != null && !exceeded) return false;
-      if (!context.mounted) return false;
-      return await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text(exceeded ? 'Budget exceeded' : 'No matching budget'),
-              content: Text(
-                exceeded
-                    ? 'You have spent ${formatMinorUnits(progress!.spentMinor, budget.currencyCode)} against your ${formatMinorUnits(budget.limitMinor, budget.currencyCode)} ${budget.name} budget. This expense was saved.'
-                    : 'This expense was saved. Create a ${transaction.category} budget to track future spending.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(exceeded ? 'Got it' : 'Not now'),
-                ),
-                if (!exceeded)
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('Create budget'),
-                  ),
-              ],
-            ),
-          ) ??
-          false;
+    final budget = matchingBudgets.firstOrNull;
+    var title = 'No matching budget';
+    var message =
+        'This expense was saved. Create a ${transaction.category} budget to track future spending.';
+    var offerCreate = true;
+    if (budget != null) {
+      final progress = finance.budgetProgress(budget);
+      if (progress.remainingMinor >= 0) return false;
+      title = 'Budget exceeded';
+      message =
+          'You have spent ${formatMinorUnits(progress.spentMinor, budget.currencyCode)} against your ${formatMinorUnits(budget.limitMinor, budget.currencyCode)} ${budget.name} budget. This expense was saved.';
+      offerCreate = false;
     }
+    if (!context.mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(offerCreate ? 'Not now' : 'Got it'),
+              ),
+              if (offerCreate)
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Create budget'),
+                ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   @override
