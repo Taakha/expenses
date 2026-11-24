@@ -315,6 +315,10 @@ void main() {
       categories.map((item) => (item.category, item.amountMinor)).toList(),
       [('Food', 50000), ('Transport', 40000)],
     );
+    expect(
+      categories.map((item) => (item.category, item.transactionCount)).toList(),
+      [('Food', 2), ('Transport', 1)],
+    );
   });
 }
 

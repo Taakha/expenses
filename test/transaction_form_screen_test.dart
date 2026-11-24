@@ -54,6 +54,7 @@ void main() {
     expect(saved.accountId, 'cash');
     expect(saved.category, 'Food');
     expect(saved.description, 'Groceries');
+    expect(find.text('No matching budget'), findsOneWidget);
   });
 
   testWidgets('editing preserves the transaction ID and updates its amount', (
