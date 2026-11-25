@@ -269,7 +269,44 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 8),
+                    GlassContainer(
+                      padding: const EdgeInsets.all(14),
+                      radius: 17,
+                      blur: 7,
+                      child: Row(
+                        children: [
+                          const Icon(
+                            AppIcons.savingsGoal,
+                            color: AppColors.tealDark,
+                          ),
+                          const SizedBox(width: 9),
+                          Expanded(
+                            child: Text(
+                              'Savings goals',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          Text(
+                            formatMinorUnits(
+                              finance.goals
+                                  .where(
+                                    (goal) =>
+                                        goal.status == 'active' &&
+                                        goal.currencyCode == currency,
+                                  )
+                                  .fold<int>(
+                                    0,
+                                    (total, goal) =>
+                                        total + finance.savingsTotal(goal),
+                                  ),
+                              currency,
+                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    ),
                     Text(
                       formatMinorUnits(income - expenses, currency),
                       style: TextStyle(
@@ -278,41 +315,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             : AppColors.income,
                         fontWeight: FontWeight.w800,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              GlassContainer(
-                padding: const EdgeInsets.all(14),
-                radius: 17,
-                blur: 7,
-                child: Row(
-                  children: [
-                    const Icon(AppIcons.savingsGoal, color: AppColors.tealDark),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        'Savings goals',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                    Text(
-                      formatMinorUnits(
-                        finance.goals
-                            .where(
-                              (goal) =>
-                                  goal.status == 'active' &&
-                                  goal.currencyCode == currency,
-                            )
-                            .fold<int>(
-                              0,
-                              (total, goal) =>
-                                  total + finance.savingsTotal(goal),
-                            ),
-                        currency,
-                      ),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ],
                 ),
