@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/constants/app_icons.dart';
+import '../core/theme/app_colors.dart';
 import '../core/widgets/glass_scaffold.dart';
 import '../features/budgets/budgets_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
@@ -8,7 +9,6 @@ import '../features/profile/profile_screen.dart';
 import '../features/reports/reports_screen.dart';
 import '../features/transactions/quick_add_sheet.dart';
 import '../features/transactions/transactions_screen.dart';
-import '../core/theme/app_colors.dart';
 
 class NavigationShell extends StatefulWidget {
   const NavigationShell({super.key});
@@ -55,9 +55,19 @@ class _NavigationShellState extends State<NavigationShell> {
                 bottom: 0,
                 child: Container(
                   height: 64,
-                  color: dark
-                      ? AppColors.darkCard.withValues(alpha: 0.96)
-                      : AppColors.lightCard.withValues(alpha: 0.96),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? AppColors.darkCard.withValues(alpha: 0.98)
+                        : AppColors.lightCard.withValues(alpha: 0.98),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                    border: Border(
+                      top: BorderSide(
+                        color: AppColors.teal.withValues(alpha: 0.12),
+                      ),
+                    ),
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -80,7 +90,6 @@ class _NavigationShellState extends State<NavigationShell> {
                           onTap: _navigate,
                         ),
                       ),
-                      const SizedBox(width: 68),
                       Expanded(
                         child: _NavDestination(
                           index: 2,
@@ -91,16 +100,7 @@ class _NavigationShellState extends State<NavigationShell> {
                           onTap: _navigate,
                         ),
                       ),
-                      Expanded(
-                        child: _NavDestination(
-                          index: 3,
-                          selected: _index == 3,
-                          icon: AppIcons.reports,
-                          selectedIcon: AppIcons.reportsFill,
-                          label: 'Reports',
-                          onTap: _navigate,
-                        ),
-                      ),
+                      const SizedBox(width: 64),
                       Expanded(
                         child: _NavDestination(
                           index: 4,
@@ -165,22 +165,34 @@ class _NavDestination extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected
-        ? AppColors.teal
-        : Theme.of(context).textTheme.bodySmall?.color ?? AppColors.lightText;
+    final inactiveColor =
+        Theme.of(context).textTheme.bodySmall?.color ?? AppColors.lightText;
     return InkWell(
       onTap: () => onTap(index),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(selected ? selectedIcon : icon, color: color, size: 21),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            width: selected ? 42 : 38,
+            height: 30,
+            decoration: BoxDecoration(
+              color: selected ? AppColors.teal : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              selected ? selectedIcon : icon,
+              color: selected ? Colors.white : inactiveColor,
+              size: 20,
+            ),
+          ),
           const SizedBox(height: 3),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: color,
+              color: selected ? AppColors.teal : inactiveColor,
               fontSize: 9,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),

@@ -475,11 +475,67 @@ class _MonthlyChart extends StatelessWidget {
               BarChartData(
                 maxY: axisMax * 1.2,
                 minY: 0,
-                gridData: const FlGridData(show: false),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: axisMax / 3,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: Theme.of(context).dividerColor
+                        .withValues(alpha: 0.18),
+                    strokeWidth: 0.7,
+                  ),
+                ),
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                        BarTooltipItem(
+                          formatMinorUnits(
+                            rodIndex == 0
+                                ? values[groupIndex].income
+                                : values[groupIndex].expense,
+                            currency,
+                          ),
+                          const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                  ),
+                  touchCallback: (event, response) {
+                    final spot = response?.spot;
+                    if (event is! FlTapUpEvent || spot == null) return;
+                    final index = spot.touchedBarGroupIndex;
+                    final rod = spot.touchedRodDataIndex;
+                    if (index < 0 ||
+                        index >= values.length ||
+                        rod < 0 ||
+                        rod > 1) {
+                      return;
+                    }
+                    final amount = rod == 0
+                        ? values[index].income
+                        : values[index].expense;
+                    final label = rod == 0 ? 'Income' : 'Expenses';
+                    showAppMessage(
+                      context,
+                      '${_monthLabel(DateTime(now.year, now.month - (5 - index)).month)} $label · ${formatMinorUnits(amount, currency)}',
+                    );
+                  },
+                ),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 48,
+                      interval: axisMax / 3,
+                      getTitlesWidget: (value, meta) => Text(
+                        _compactChartAmount(value, currency),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(fontSize: 8),
+                      ),
+                    ),
                   ),
                   rightTitles: const AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
@@ -548,6 +604,18 @@ class _MonthlyChart extends StatelessWidget {
       ),
     );
   }
+}
+
+String _compactChartAmount(double amount, String currency) {
+  final absolute = amount.abs();
+  final compact = absolute >= 1000000000
+      ? '${(amount / 1000000000).toStringAsFixed(1)}B'
+      : absolute >= 1000000
+      ? '${(amount / 1000000).toStringAsFixed(1)}M'
+      : absolute >= 1000
+      ? '${(amount / 1000).toStringAsFixed(0)}K'
+      : amount.toStringAsFixed(0);
+  return '$currency $compact';
 }
 
 class _ChartLegend extends StatelessWidget {

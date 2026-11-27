@@ -25,7 +25,10 @@ class ProfileScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.only(top: 10, bottom: 28),
         children: [
-          const ScreenHeader(title: 'More', subtitle: 'Your account, tools and preferences.'),
+          const ScreenHeader(
+            title: 'More',
+            subtitle: 'Your account, tools and preferences.',
+          ),
           GlassContainer(
             padding: const EdgeInsets.all(17),
             radius: 21,
@@ -49,15 +52,22 @@ class ProfileScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(shownName, style: Theme.of(context).textTheme.titleLarge),
+                      Text(
+                        shownName,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                       const SizedBox(height: 3),
-                      Text(user?.email ?? '', style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        user?.email ?? '',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),
                 IconButton(
                   tooltip: 'Edit profile',
-                  onPressed: () => Navigator.pushNamed(context, RouteNames.settings),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, RouteNames.settings),
                   icon: const Icon(AppIcons.editProfile),
                 ),
               ],
@@ -73,8 +83,15 @@ class ProfileScreen extends StatelessWidget {
           _ProfileLink(
             icon: AppIcons.notification,
             title: 'Notifications',
-            subtitle: '${finance.notifications.where((item) => !item.isRead).length} unread',
+            subtitle:
+                '${finance.notifications.where((item) => !item.isRead).length} unread',
             onTap: () => Navigator.pushNamed(context, RouteNames.notifications),
+          ),
+          _ProfileLink(
+            icon: AppIcons.reports,
+            title: 'Reports',
+            subtitle: 'Review income, expenses and trends',
+            onTap: () => Navigator.pushNamed(context, RouteNames.reports),
           ),
           _ProfileLink(
             icon: AppIcons.category,
@@ -139,7 +156,8 @@ class ProfileScreen extends StatelessWidget {
               try {
                 await context.read<AuthService>().signOut();
               } catch (error) {
-                if (context.mounted) showAppMessage(context, error.toString(), isError: true);
+                if (context.mounted)
+                  showAppMessage(context, error.toString(), isError: true);
               }
             },
             icon: const Icon(AppIcons.signOut),
@@ -175,7 +193,10 @@ class _ProfileLink extends StatelessWidget {
         child: ListTile(
           leading: Icon(icon, color: AppColors.tealDark),
           title: Text(title, style: Theme.of(context).textTheme.titleMedium),
-          subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+          subtitle: Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           trailing: const Icon(AppIcons.chevronRight),
           onTap: onTap,
         ),

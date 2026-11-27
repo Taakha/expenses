@@ -26,8 +26,6 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   String _period = 'monthly';
-  DateTime? _customFrom;
-  DateTime? _customThrough;
   String? _currency;
   String? _accountId;
   bool _exporting = false;
@@ -40,7 +38,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final finance = context.watch<FinanceController>();
     final currency = _currency ?? finance.preferredCurrency;
     final now = DateTime.now();
-    final range = _reportRange(_period, now, _customFrom, _customThrough);
+    final range = _reportRange(_period, now);
     final from = range.from;
     final through = range.through;
     final reportKey =
@@ -119,32 +117,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _period,
-                      decoration: const InputDecoration(labelText: 'Period'),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'weekly',
-                          child: Text('Weekly'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'monthly',
-                          child: Text('Monthly'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'yearly',
-                          child: Text('Yearly'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'custom',
-                          child: Text('Custom range'),
-                        ),
+                    child: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'weekly', label: Text('Week')),
+                        ButtonSegment(value: 'monthly', label: Text('Month')),
+                        ButtonSegment(value: 'yearly', label: Text('Year')),
                       ],
-                      onChanged: (value) =>
-                          setState(() => _period = value ?? _period),
+                      selected: {_period},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (value) =>
+                          setState(() => _period = value.first),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       initialValue: visibleCurrencies.contains(currency)
@@ -162,73 +151,31 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       onChanged: (value) => setState(() => _currency = value),
                     ),
                   ),
-                ],
-              ),
-              if (_period == 'custom') ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () async {
-                          final selected = await showDatePicker(
-                            context: context,
-                            initialDate: _customFrom ?? from,
-                            firstDate: DateTime(2000),
-                            lastDate: now,
-                          );
-                          if (selected != null) {
-                            setState(() {
-                              _customFrom = selected;
-                              if (_customThrough != null &&
-                                  _customThrough!.isBefore(selected)) {
-                                _customThrough = selected;
-                              }
-                            });
-                          }
-                        },
-                        child: Text('From ${_date(from)}'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _accountId ?? '__all_accounts__',
+                      decoration: const InputDecoration(labelText: 'Account'),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '__all_accounts__',
+                          child: Text('All accounts'),
+                        ),
+                        ...finance.accounts.map(
+                          (account) => DropdownMenuItem(
+                            value: account.id,
+                            child: Text(account.name),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) => setState(
+                        () => _accountId = value == '__all_accounts__'
+                            ? null
+                            : value,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () async {
-                          final selected = await showDatePicker(
-                            context: context,
-                            initialDate: _customThrough ?? now,
-                            firstDate: _customFrom ?? DateTime(2000),
-                            lastDate: now,
-                          );
-                          if (selected != null) {
-                            setState(() => _customThrough = selected);
-                          }
-                        },
-                        child: Text('To ${_date(through)}'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: _accountId ?? '__all_accounts__',
-                decoration: const InputDecoration(labelText: 'Account'),
-                items: [
-                  const DropdownMenuItem(
-                    value: '__all_accounts__',
-                    child: Text('All accounts'),
-                  ),
-                  ...finance.accounts.map(
-                    (account) => DropdownMenuItem(
-                      value: account.id,
-                      child: Text(account.name),
                     ),
                   ),
                 ],
-                onChanged: (value) => setState(
-                  () => _accountId = value == '__all_accounts__' ? null : value,
-                ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -352,14 +299,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 through: through,
               ),
               const SizedBox(height: 10),
-              _SpendingTrendChart(
-                buckets: data.monthlySummaries,
-                currency: currency,
-                period: _period,
-                from: from,
-                through: through,
-              ),
-              const SizedBox(height: 10),
               _CategoryReport(
                 categories: categories,
                 currency: currency,
@@ -462,7 +401,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       bucketStarts.map(
         (month) => finance.summaryFor(
           from: month,
-          through: _bucketEnd(period, month, from, through),
+          through: _bucketEnd(period, month, through),
           accountId: accountId,
         ),
       ),
@@ -651,10 +590,12 @@ class _MonthlyReportChart extends StatelessWidget {
             )
           else
             SizedBox(
-              height: 190,
+              height: 194,
               child: BarChart(
                 BarChartData(
-                  maxY: maxAmount.toDouble() * 1.18,
+                  maxY: maxAmount.toDouble() * 1.2,
+                  minY: 0,
+                  alignment: BarChartAlignment.spaceAround,
                   barGroups: [
                     for (var index = 0; index < data.length; index++)
                       BarChartGroupData(
@@ -677,6 +618,21 @@ class _MonthlyReportChart extends StatelessWidget {
                       ),
                   ],
                   barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final amount = rodIndex == 0
+                            ? data[groupIndex].income
+                            : data[groupIndex].expense;
+                        return BarTooltipItem(
+                          formatMinorUnits(amount, currency),
+                          const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        );
+                      },
+                    ),
                     touchCallback: (event, response) {
                       final spot = response?.spot;
                       if (event is! FlTapUpEvent || spot == null) return;
@@ -693,7 +649,6 @@ class _MonthlyReportChart extends StatelessWidget {
                       final bucketThrough = _bucketEnd(
                         period,
                         bucketFrom,
-                        from,
                         through,
                       );
                       final type = rod == 0 ? 'income' : 'expense';
@@ -702,7 +657,7 @@ class _MonthlyReportChart extends StatelessWidget {
                         context,
                         finance: finance,
                         title:
-                            '${_bucketLabel(period, bucket.month, from, through)} $type · ${formatMinorUnits(amount, currency)}',
+                            '${_bucketLabel(period, bucket.month)} $type · ${formatMinorUnits(amount, currency)}',
                         currency: currency,
                         from: bucketFrom,
                         through: bucketThrough,
@@ -711,9 +666,15 @@ class _MonthlyReportChart extends StatelessWidget {
                       );
                     },
                   ),
-                  gridData: const FlGridData(
+                  gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
+                    horizontalInterval: maxAmount / 3,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: Theme.of(context).dividerColor
+                          .withValues(alpha: 0.18),
+                      strokeWidth: 0.7,
+                    ),
                   ),
                   borderData: FlBorderData(show: false),
                   titlesData: FlTitlesData(
@@ -723,8 +684,17 @@ class _MonthlyReportChart extends StatelessWidget {
                     rightTitles: const AxisTitles(
                       sideTitles: SideTitles(showTitles: false),
                     ),
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 46,
+                        interval: maxAmount / 3,
+                        getTitlesWidget: (value, meta) => Text(
+                          _compactChartAmount(value, currency),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(fontSize: 8),
+                        ),
+                      ),
                     ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
@@ -737,12 +707,7 @@ class _MonthlyReportChart extends StatelessWidget {
                           return Padding(
                             padding: const EdgeInsets.only(top: 5),
                             child: Text(
-                              _bucketLabel(
-                                period,
-                                data[index].month,
-                                from,
-                                through,
-                              ),
+                              _bucketLabel(period, data[index].month),
                               style: const TextStyle(fontSize: 9),
                             ),
                           );
@@ -763,142 +728,15 @@ class _MonthlyReportChart extends StatelessWidget {
               _LegendDot(color: AppColors.expense, label: 'Expenses'),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SpendingTrendChart extends StatelessWidget {
-  const _SpendingTrendChart({
-    required this.buckets,
-    required this.currency,
-    required this.period,
-    required this.from,
-    required this.through,
-  });
-
-  final List<({DateTime month, FinancialSummary summary})> buckets;
-  final String currency;
-  final String period;
-  final DateTime from;
-  final DateTime through;
-
-  @override
-  Widget build(BuildContext context) {
-    final incomes = [
-      for (var index = 0; index < buckets.length; index++)
-        FlSpot(
-          index.toDouble(),
-          (buckets[index].summary.incomeByCurrency[currency] ?? 0).toDouble(),
-        ),
-    ];
-    final expenses = [
-      for (var index = 0; index < buckets.length; index++)
-        FlSpot(
-          index.toDouble(),
-          (buckets[index].summary.expensesByCurrency[currency] ?? 0).toDouble(),
-        ),
-    ];
-    final maxAmount = [
-      ...incomes.map((spot) => spot.y),
-      ...expenses.map((spot) => spot.y),
-    ].fold<double>(0, (current, value) => value > current ? value : current);
-    return GlassContainer(
-      padding: const EdgeInsets.fromLTRB(13, 14, 14, 9),
-      radius: 18,
-      blur: 8,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
           Text(
-            'Spending trends',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 13),
-          if (maxAmount == 0)
-            const SizedBox(
-              height: 150,
-              child: Center(
-                child: Text('Add a transaction to see your spending trends.'),
-              ),
-            )
-          else
-            SizedBox(
-              height: 180,
-              child: LineChart(
-                LineChartData(
-                  minY: 0,
-                  maxY: maxAmount * 1.18,
-                  gridData: const FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                  ),
-                  borderData: FlBorderData(show: false),
-                  titlesData: FlTitlesData(
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          if (index < 0 || index >= buckets.length) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 5),
-                            child: Text(
-                              _bucketLabel(
-                                period,
-                                buckets[index].month,
-                                from,
-                                through,
-                              ),
-                              style: const TextStyle(fontSize: 9),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  lineBarsData: [
-                    _trendLine(incomes, AppColors.income),
-                    _trendLine(expenses, AppColors.expense),
-                  ],
-                ),
-                duration: const Duration(milliseconds: 350),
-              ),
-            ),
-          const SizedBox(height: 3),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _LegendDot(color: AppColors.income, label: 'Income'),
-              SizedBox(width: 14),
-              _LegendDot(color: AppColors.expense, label: 'Expenses'),
-            ],
+            'Tap a bar for the exact amount and transactions.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
     );
   }
-
-  LineChartBarData _trendLine(List<FlSpot> spots, Color color) =>
-      LineChartBarData(
-        spots: spots,
-        isCurved: true,
-        color: color,
-        barWidth: 2.5,
-        dotData: const FlDotData(show: false),
-      );
 }
 
 class _CategoryReport extends StatelessWidget {
@@ -951,49 +789,122 @@ class _CategoryReport extends StatelessWidget {
             )
           else ...[
             SizedBox(
-              height: 180,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  PieChart(
-                    PieChartData(
-                      centerSpaceRadius: 44,
-                      sectionsSpace: 3,
-                      sections: [
-                        for (var index = 0; index < categories.length; index++)
-                          PieChartSectionData(
-                            value: categories[index].amountMinor.toDouble(),
+              height: 174,
+              child: BarChart(
+                BarChartData(
+                  maxY:
+                      categories
+                          .map((item) => item.amountMinor)
+                          .fold<int>(0, math.max)
+                          .toDouble() *
+                      1.18,
+                  minY: 0,
+                  alignment: BarChartAlignment.spaceAround,
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: total / 3,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: Theme.of(context).dividerColor
+                          .withValues(alpha: 0.18),
+                      strokeWidth: 0.7,
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: [
+                    for (var index = 0; index < categories.length; index++)
+                      BarChartGroupData(
+                        x: index,
+                        barRods: [
+                          BarChartRodData(
+                            toY: categories[index].amountMinor.toDouble(),
                             color: _colors[index % _colors.length],
-                            radius: 35,
-                            title: total > 0
-                                ? '${categories[index].amountMinor * 100 ~/ total}%'
-                                : '',
-                            titleStyle: const TextStyle(
+                            width: 18,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ],
+                      ),
+                  ],
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                          BarTooltipItem(
+                            formatMinorUnits(
+                              categories[groupIndex].amountMinor,
+                              currency,
+                            ),
+                            const TextStyle(
                               color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                      ],
                     ),
-                    duration: const Duration(milliseconds: 350),
+                    touchCallback: (event, response) {
+                      final spot = response?.spot;
+                      if (event is! FlTapUpEvent || spot == null) return;
+                      final index = spot.touchedBarGroupIndex;
+                      if (index < 0 || index >= categories.length) return;
+                      final item = categories[index];
+                      _showReportTransactions(
+                        context,
+                        finance: finance,
+                        title:
+                            '${item.category} · ${formatMinorUnits(item.amountMinor, currency)} · ${item.transactionCount} transactions',
+                        currency: currency,
+                        from: from,
+                        through: through,
+                        accountId: accountId,
+                        category: item.category,
+                        type: 'expense',
+                      );
+                    },
                   ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Total',
-                        style: Theme.of(context).textTheme.bodySmall,
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 42,
+                        interval: total / 3,
+                        getTitlesWidget: (value, meta) => Text(
+                          _compactChartAmount(value, currency),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(fontSize: 8),
+                        ),
                       ),
-                      Text(
-                        formatMinorUnits(total, currency),
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.labelSmall
-                            ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 23,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index < 0 || index >= categories.length) {
+                            return const SizedBox.shrink();
+                          }
+                          final name = categories[index].category;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 5),
+                            child: Text(
+                              name.length > 7
+                                  ? '${name.substring(0, 6)}…'
+                                  : name,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(fontSize: 8),
+                            ),
+                          );
+                        },
                       ),
-                    ],
+                    ),
                   ),
-                ],
+                ),
+                duration: const Duration(milliseconds: 350),
               ),
             ),
             ...categories.take(7).toList().asMap().entries.map((entry) {
@@ -1399,12 +1310,7 @@ class _ReportData {
   final List<FinancialTransaction> recentTransactions;
 }
 
-({DateTime from, DateTime through}) _reportRange(
-  String period,
-  DateTime now,
-  DateTime? customFrom,
-  DateTime? customThrough,
-) {
+({DateTime from, DateTime through}) _reportRange(String period, DateTime now) {
   switch (period) {
     case 'weekly':
       final start = DateTime(
@@ -1413,15 +1319,10 @@ class _ReportData {
         now.day - (now.weekday - DateTime.monday),
       );
       return (from: start, through: now);
+    case 'monthly':
+      return (from: DateTime(now.year, now.month), through: now);
     case 'yearly':
       return (from: DateTime(now.year), through: now);
-    case 'custom':
-      final start = customFrom ?? DateTime(now.year, now.month, 1);
-      final end = customThrough ?? now;
-      return (
-        from: DateTime(start.year, start.month, start.day),
-        through: DateTime(end.year, end.month, end.day, 23, 59, 59, 999),
-      );
     default:
       return (from: DateTime(now.year, now.month, 1), through: now);
   }
@@ -1438,57 +1339,40 @@ List<DateTime> _bucketStarts(String period, DateTime from, DateTime through) {
         DateTime(date.year, date.month, date.day),
     ];
   }
-  final useYears = _usesYearBuckets(period, from, through);
-  if (useYears) {
+  if (period == 'monthly') {
     return [
-      for (var year = from.year; year <= through.year; year++)
-        year == from.year ? from : DateTime(year),
+      for (
+        var date = from;
+        !date.isAfter(through);
+        date = date.add(const Duration(days: 7))
+      )
+        DateTime(date.year, date.month, date.day),
     ];
   }
-  final firstMonth = DateTime(from.year, from.month);
   return [
     for (
-      var month = firstMonth;
+      var month = DateTime(from.year, from.month);
       !month.isAfter(DateTime(through.year, through.month));
       month = DateTime(month.year, month.month + 1)
     )
-      month == firstMonth ? from : month,
+      month,
   ];
 }
 
-DateTime _bucketEnd(
-  String period,
-  DateTime start,
-  DateTime rangeStart,
-  DateTime rangeEnd,
-) {
+DateTime _bucketEnd(String period, DateTime start, DateTime rangeEnd) {
   if (period == 'weekly') {
     final end = DateTime(start.year, start.month, start.day, 23, 59, 59, 999);
     return end.isAfter(rangeEnd) ? rangeEnd : end;
   }
-  final end = _usesYearBuckets(period, rangeStart, rangeEnd)
-      ? DateTime(start.year + 1, 1)
+  final end = period == 'monthly'
+      ? start.add(const Duration(days: 7))
       : DateTime(start.year, start.month + 1);
   final endOfBucket = end.subtract(const Duration(milliseconds: 1));
   return endOfBucket.isAfter(rangeEnd) ? rangeEnd : endOfBucket;
 }
 
-bool _usesYearBuckets(String period, DateTime from, DateTime through) {
-  if (period == 'yearly') return true;
-  if (period != 'custom') return false;
-  final monthCount =
-      (through.year - from.year) * 12 + through.month - from.month + 1;
-  return monthCount > 24;
-}
-
-String _bucketLabel(
-  String period,
-  DateTime date,
-  DateTime rangeStart,
-  DateTime rangeEnd,
-) {
-  if (period == 'weekly') return '${date.day}';
-  if (_usesYearBuckets(period, rangeStart, rangeEnd)) return '${date.year}';
+String _bucketLabel(String period, DateTime date) {
+  if (period == 'weekly' || period == 'monthly') return '${date.day}';
   return _monthLabel(date);
 }
 
@@ -1508,3 +1392,15 @@ String _monthLabel(DateTime month) => const [
 ][month.month - 1];
 
 String _date(DateTime date) => '${date.day}/${date.month}/${date.year}';
+
+String _compactChartAmount(double amount, String currency) {
+  final absolute = amount.abs();
+  final compact = absolute >= 1000000000
+      ? '${(amount / 1000000000).toStringAsFixed(1)}B'
+      : absolute >= 1000000
+      ? '${(amount / 1000000).toStringAsFixed(1)}M'
+      : absolute >= 1000
+      ? '${(amount / 1000).toStringAsFixed(0)}K'
+      : amount.toStringAsFixed(0);
+  return '$currency $compact';
+}
