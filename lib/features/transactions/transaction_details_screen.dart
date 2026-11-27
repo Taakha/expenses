@@ -79,13 +79,7 @@ class TransactionDetailsScreen extends StatelessWidget {
           GlassContainer(
             padding: const EdgeInsets.all(22),
             radius: 24,
-            gradient: LinearGradient(
-              colors: isIncoming
-                  ? const [Color(0xD60A9C7D), Color(0xE6065B59)]
-                  : const [Color(0xD6548290), Color(0xE62B4B5F)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            opacity: isIncoming ? 0.86 : 0.72,
             child: Column(
               children: [
                 Icon(

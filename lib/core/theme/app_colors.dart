@@ -20,15 +20,4 @@ class AppColors {
   static const darkMuted = Color(0xFFA8C4BF);
   static const lightCanvas = Color(0xFFEAF8F6);
   static const darkCanvas = Color(0xFF071F23);
-
-  static const lightGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFE5FBF6), Color(0xFFCDF3EC), Color(0xFFEFF6FC)],
-  );
-  static const darkGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF052A2C), Color(0xFF0B3B40), Color(0xFF10283A)],
-  );
 }

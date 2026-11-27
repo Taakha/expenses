@@ -92,14 +92,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         width: 246,
                         height: 246,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              item.color.withValues(alpha: 0.2),
-                              item.color.withValues(alpha: 0.04),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          color: item.color.withValues(alpha: 0.12),
                         ),
                         child: Stack(
                           alignment: Alignment.center,

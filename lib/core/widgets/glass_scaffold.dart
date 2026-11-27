@@ -27,7 +27,6 @@ class GlassScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final gradient = dark ? AppColors.darkGradient : AppColors.lightGradient;
     final content = Padding(padding: padding, child: child);
     return Scaffold(
       backgroundColor: dark ? AppColors.darkCanvas : AppColors.lightCanvas,
@@ -36,7 +35,7 @@ class GlassScaffold extends StatelessWidget {
       bottomNavigationBar: bottomNavigationBar,
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       body: Container(
-        decoration: BoxDecoration(gradient: gradient),
+        color: dark ? AppColors.darkCanvas : AppColors.lightCanvas,
         child: Stack(
           children: [
             const Positioned(

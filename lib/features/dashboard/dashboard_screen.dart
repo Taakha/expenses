@@ -275,11 +275,7 @@ class _BalanceSummary extends StatelessWidget {
     return GlassContainer(
       padding: const EdgeInsets.all(17),
       radius: 23,
-      gradient: const LinearGradient(
-        colors: [Color(0xE70B8D7E), Color(0xE906565D)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
+      opacity: 0.90,
       borderColor: Colors.white.withValues(alpha: 0.42),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
