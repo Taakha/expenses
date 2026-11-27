@@ -387,6 +387,22 @@ class FinanceController extends ChangeNotifier {
     await syncNow();
   }
 
+  Future<void> keepBothTransactionConflict({
+    required Map<String, Object?> conflict,
+  }) async {
+    final collection = conflict['collection_name'];
+    if (collection != 'transactions') {
+      throw const FinanceException(
+        'Keeping both is only supported for transaction conflicts.',
+      );
+    }
+    await _repository.keepBothTransactionConflict(
+      uid: _requireUid(),
+      recordId: conflict['record_id']! as String,
+    );
+    await syncNow();
+  }
+
   Future<void> _run(Future<void> Function() action) async {
     lastError = null;
     try {

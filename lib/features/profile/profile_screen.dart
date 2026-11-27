@@ -156,8 +156,9 @@ class ProfileScreen extends StatelessWidget {
               try {
                 await context.read<AuthService>().signOut();
               } catch (error) {
-                if (context.mounted)
+                if (context.mounted) {
                   showAppMessage(context, error.toString(), isError: true);
+                }
               }
             },
             icon: const Icon(AppIcons.signOut),

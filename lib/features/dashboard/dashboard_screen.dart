@@ -94,6 +94,38 @@ class DashboardScreen extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 13),
+        if (finance.conflicts.isNotEmpty) ...[
+          Material(
+            color: AppColors.expense.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(15),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(15),
+              onTap: () => Navigator.pushNamed(context, RouteNames.conflicts),
+              child: Padding(
+                padding: const EdgeInsets.all(13),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: AppColors.expense,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${finance.conflicts.length} financial change conflict${finance.conflicts.length == 1 ? '' : 's'} need review.',
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.chevron_right_rounded),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         SyncStatusCard(
           state: finance.syncState.name,
           pending: finance.pendingSyncCount,

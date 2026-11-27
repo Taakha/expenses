@@ -45,14 +45,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         '$_period|$currency|$_accountId|${from.millisecondsSinceEpoch}|${through.millisecondsSinceEpoch}|${identityHashCode(finance.snapshot)}';
     if (_reportKey != reportKey) {
       _reportKey = reportKey;
-      _reportFuture = _loadReport(
-        finance,
-        currency,
-        from,
-        through,
-        _accountId,
-        _period,
-      );
+      _reportFuture = _loadReport(finance, currency, from, through, _accountId);
     }
     final visibleCurrencies = {
       ...finance.accounts.map((account) => account.currencyCode),
@@ -294,9 +287,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 finance: finance,
                 currency: currency,
                 accountId: _accountId,
-                period: _period,
-                from: from,
-                through: through,
               ),
               const SizedBox(height: 10),
               _CategoryReport(
@@ -383,7 +373,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     DateTime from,
     DateTime through,
     String? accountId,
-    String period,
   ) async {
     final summaryFuture = finance.summaryFor(
       from: from,
@@ -396,12 +385,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
       through: through,
       accountId: accountId,
     );
-    final bucketStarts = _bucketStarts(period, from, through);
+    final now = DateTime.now();
+    final bucketStarts = [
+      for (var offset = 11; offset >= 0; offset--)
+        DateTime(now.year, now.month - offset),
+    ];
     final monthlySummaries = await Future.wait(
       bucketStarts.map(
         (month) => finance.summaryFor(
           from: month,
-          through: _bucketEnd(period, month, through),
+          through: DateTime(
+            month.year,
+            month.month + 1,
+          ).subtract(const Duration(milliseconds: 1)),
           accountId: accountId,
         ),
       ),
@@ -472,12 +468,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
           .toList();
       await _exports.shareReportPdf(
         periodLabel: '${_date(from)} - ${_date(through)}',
+        periodStart: from,
         currencyCode: currency,
         incomeMinor: income,
         expenseMinor: expenses,
         balanceMinor: balance,
         categories: categories,
         transactions: transactions,
+        accountNames: {
+          for (final account in finance.accounts) account.id: account.name,
+        },
+        accountLabel: accountId == null
+            ? 'All wallets'
+            : finance.accounts
+                  .where((account) => account.id == accountId)
+                  .map((account) => account.name)
+                  .firstOrNull,
       );
     } catch (error) {
       if (mounted) {
@@ -540,35 +546,45 @@ class _ReportMetric extends StatelessWidget {
   }
 }
 
-class _MonthlyReportChart extends StatelessWidget {
+class _MonthlyReportChart extends StatefulWidget {
   const _MonthlyReportChart({
     required this.buckets,
     required this.finance,
     required this.currency,
     required this.accountId,
-    required this.period,
-    required this.from,
-    required this.through,
   });
 
   final List<({DateTime month, FinancialSummary summary})> buckets;
   final FinanceController finance;
   final String currency;
   final String? accountId;
-  final String period;
-  final DateTime from;
-  final DateTime through;
+
+  @override
+  State<_MonthlyReportChart> createState() => _MonthlyReportChartState();
+}
+
+class _MonthlyReportChartState extends State<_MonthlyReportChart> {
+  int _rangeMonths = 6;
+  int _selectedIndex = -1;
 
   @override
   Widget build(BuildContext context) {
     final data = <({DateTime month, int income, int expense})>[];
     var maxAmount = 0;
-    for (final bucket in buckets) {
-      final income = bucket.summary.incomeByCurrency[currency] ?? 0;
-      final expense = bucket.summary.expensesByCurrency[currency] ?? 0;
+    for (final bucket in widget.buckets.skip(
+      math.max(0, widget.buckets.length - _rangeMonths),
+    )) {
+      final income = bucket.summary.incomeByCurrency[widget.currency] ?? 0;
+      final expense = bucket.summary.expensesByCurrency[widget.currency] ?? 0;
       data.add((month: bucket.month, income: income, expense: expense));
       maxAmount = math.max(maxAmount, math.max(income, expense));
     }
+    if (data.isEmpty) return const SizedBox.shrink();
+    final selectedIndex = _selectedIndex < 0 || _selectedIndex >= data.length
+        ? data.length - 1
+        : _selectedIndex;
+    final selected = data[selectedIndex];
+    final net = selected.income - selected.expense;
     return GlassContainer(
       padding: const EdgeInsets.fromLTRB(13, 14, 14, 9),
       radius: 18,
@@ -576,16 +592,91 @@ class _MonthlyReportChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Income vs expenses',
-            style: Theme.of(context).textTheme.titleMedium,
+          Row(
+            children: [
+              Text(
+                'Income vs expenses',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              spacing: 5,
+              children: [
+                for (final months in [3, 6, 12])
+                  ChoiceChip(
+                    label: Text(months == 12 ? '1Y' : '${months}M'),
+                    selected: _rangeMonths == months,
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (_) => setState(() {
+                      _rangeMonths = months;
+                      _selectedIndex = -1;
+                    }),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? 0.75
+                    : 0.9,
+              ),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_monthLabel(selected.month)} · Net saved',
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                Text(
+                  '${net < 0 ? '-' : '+'}${formatMinorUnits(net.abs(), widget.currency)}',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: net < 0 ? AppColors.expense : AppColors.income,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Income  +${formatMinorUnits(selected.income, widget.currency)}',
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: AppColors.income),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Expenses  -${formatMinorUnits(selected.expense, widget.currency)}',
+                        textAlign: TextAlign.end,
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: AppColors.expense),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 13),
           if (maxAmount == 0)
             const SizedBox(
-              height: 150,
+              height: 135,
               child: Center(
-                child: Text('Add a transaction to see your income trends.'),
+                child: Text(
+                  'Add your first transaction to see trends.',
+                  textAlign: TextAlign.center,
+                ),
               ),
             )
           else
@@ -603,14 +694,32 @@ class _MonthlyReportChart extends StatelessWidget {
                         barsSpace: 3,
                         barRods: [
                           BarChartRodData(
-                            toY: data[index].income.toDouble(),
-                            color: AppColors.income,
+                            toY: data[index].income == 0
+                                ? 0
+                                : math
+                                      .max(
+                                        data[index].income,
+                                        maxAmount * 0.015,
+                                      )
+                                      .toDouble(),
+                            color: index == selectedIndex
+                                ? AppColors.income
+                                : AppColors.income.withValues(alpha: 0.48),
                             width: 7,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           BarChartRodData(
-                            toY: math.max(0, data[index].expense).toDouble(),
-                            color: AppColors.expense,
+                            toY: data[index].expense == 0
+                                ? 0
+                                : math
+                                      .max(
+                                        data[index].expense,
+                                        maxAmount * 0.015,
+                                      )
+                                      .toDouble(),
+                            color: index == selectedIndex
+                                ? AppColors.expense
+                                : AppColors.expense.withValues(alpha: 0.48),
                             width: 7,
                             borderRadius: BorderRadius.circular(4),
                           ),
@@ -624,7 +733,7 @@ class _MonthlyReportChart extends StatelessWidget {
                             ? data[groupIndex].income
                             : data[groupIndex].expense;
                         return BarTooltipItem(
-                          formatMinorUnits(amount, currency),
+                          formatMinorUnits(amount, widget.currency),
                           const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -644,24 +753,24 @@ class _MonthlyReportChart extends StatelessWidget {
                           rod > 1) {
                         return;
                       }
+                      setState(() => _selectedIndex = index);
                       final bucket = data[index];
                       final bucketFrom = bucket.month;
-                      final bucketThrough = _bucketEnd(
-                        period,
-                        bucketFrom,
-                        through,
-                      );
+                      final bucketThrough = DateTime(
+                        bucketFrom.year,
+                        bucketFrom.month + 1,
+                      ).subtract(const Duration(milliseconds: 1));
                       final type = rod == 0 ? 'income' : 'expense';
                       final amount = rod == 0 ? bucket.income : bucket.expense;
                       _showReportTransactions(
                         context,
-                        finance: finance,
+                        finance: widget.finance,
                         title:
-                            '${_bucketLabel(period, bucket.month)} $type · ${formatMinorUnits(amount, currency)}',
-                        currency: currency,
+                            '${_monthLabel(bucket.month)} $type · ${formatMinorUnits(amount, widget.currency)}',
+                        currency: widget.currency,
                         from: bucketFrom,
                         through: bucketThrough,
-                        accountId: accountId,
+                        accountId: widget.accountId,
                         type: type,
                       );
                     },
@@ -690,7 +799,7 @@ class _MonthlyReportChart extends StatelessWidget {
                         reservedSize: 46,
                         interval: maxAmount / 3,
                         getTitlesWidget: (value, meta) => Text(
-                          _compactChartAmount(value, currency),
+                          _compactChartAmount(value, widget.currency),
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(fontSize: 8),
                         ),
@@ -707,7 +816,7 @@ class _MonthlyReportChart extends StatelessWidget {
                           return Padding(
                             padding: const EdgeInsets.only(top: 5),
                             child: Text(
-                              _bucketLabel(period, data[index].month),
+                              _monthLabel(data[index].month),
                               style: const TextStyle(fontSize: 9),
                             ),
                           );
@@ -1326,54 +1435,6 @@ class _ReportData {
     default:
       return (from: DateTime(now.year, now.month, 1), through: now);
   }
-}
-
-List<DateTime> _bucketStarts(String period, DateTime from, DateTime through) {
-  if (period == 'weekly') {
-    return [
-      for (
-        var date = from;
-        !date.isAfter(through);
-        date = date.add(const Duration(days: 1))
-      )
-        DateTime(date.year, date.month, date.day),
-    ];
-  }
-  if (period == 'monthly') {
-    return [
-      for (
-        var date = from;
-        !date.isAfter(through);
-        date = date.add(const Duration(days: 7))
-      )
-        DateTime(date.year, date.month, date.day),
-    ];
-  }
-  return [
-    for (
-      var month = DateTime(from.year, from.month);
-      !month.isAfter(DateTime(through.year, through.month));
-      month = DateTime(month.year, month.month + 1)
-    )
-      month,
-  ];
-}
-
-DateTime _bucketEnd(String period, DateTime start, DateTime rangeEnd) {
-  if (period == 'weekly') {
-    final end = DateTime(start.year, start.month, start.day, 23, 59, 59, 999);
-    return end.isAfter(rangeEnd) ? rangeEnd : end;
-  }
-  final end = period == 'monthly'
-      ? start.add(const Duration(days: 7))
-      : DateTime(start.year, start.month + 1);
-  final endOfBucket = end.subtract(const Duration(milliseconds: 1));
-  return endOfBucket.isAfter(rangeEnd) ? rangeEnd : endOfBucket;
-}
-
-String _bucketLabel(String period, DateTime date) {
-  if (period == 'weekly' || period == 'monthly') return '${date.day}';
-  return _monthLabel(date);
 }
 
 String _monthLabel(DateTime month) => const [

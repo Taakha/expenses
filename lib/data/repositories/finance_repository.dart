@@ -1581,6 +1581,103 @@ class FinanceRepository {
     }
   }
 
+  Future<void> keepBothTransactionConflict({
+    required String uid,
+    required String recordId,
+  }) async {
+    final db = await _database.database;
+    await db.transaction((transaction) async {
+      final conflicts = await transaction.query(
+        'sync_conflicts',
+        where:
+            'user_id = ? AND collection_name = ? AND record_id = ?',
+        whereArgs: [uid, 'transactions', recordId],
+        limit: 1,
+      );
+      if (conflicts.isEmpty) {
+        throw const FinanceException('This conflict is no longer available.');
+      }
+
+      final conflict = conflicts.first;
+      final localRows = await transaction.query(
+        'transactions',
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [recordId, uid],
+        limit: 1,
+      );
+      if (localRows.isEmpty) {
+        throw const FinanceException(
+          'The local transaction is missing. No changes were made.',
+        );
+      }
+
+      final decodedRemote = jsonDecode(
+        conflict['remote_record']! as String,
+      );
+      if (decodedRemote is! Map<String, dynamic>) {
+        throw const FinanceException(
+          'The other device transaction could not be read. No changes were made.',
+        );
+      }
+      final remote = Map<String, Object?>.from(decodedRemote);
+      if (remote['id'] != recordId ||
+          remote['user_id'] != uid ||
+          remote['status'] != 'active') {
+        throw const FinanceException(
+          'The other device transaction cannot be duplicated safely.',
+        );
+      }
+
+      final local = localRows.first;
+      if (local['status'] != 'active') {
+        throw const FinanceException(
+          'The local transaction cannot be duplicated safely.',
+        );
+      }
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final localVersion = local['version'] as int? ?? 1;
+      final remoteVersion = remote['version'] as int? ?? localVersion;
+      final duplicateId = createId();
+      final duplicate = <String, Object?>{
+        ...remote,
+        'id': duplicateId,
+        'version': 1,
+        'sync_status': SyncStatus.pending.name,
+        'receipt_path': null,
+        'created_at': now,
+        'updated_at': now,
+        if (remote['transfer_id'] is String) 'transfer_id': createId(),
+      };
+
+      await transaction.insert(
+        'transactions',
+        duplicate,
+        conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+      await transaction.update(
+        'transactions',
+        {
+          'version': (localVersion > remoteVersion
+                  ? localVersion
+                  : remoteVersion) +
+              1,
+          'sync_status': SyncStatus.pending.name,
+          'updated_at': now,
+        },
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [recordId, uid],
+      );
+      await _queue(transaction, uid, 'transactions', recordId);
+      await _queue(transaction, uid, 'transactions', duplicateId);
+      await transaction.delete(
+        'sync_conflicts',
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [conflict['id'], uid],
+      );
+    });
+  }
+
   Future<void> applyRemoteRecord(
     String uid,
     String collection,
