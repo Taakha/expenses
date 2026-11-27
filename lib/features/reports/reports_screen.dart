@@ -288,10 +288,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 blur: 7,
                 child: Row(
                   children: [
-                    const Icon(
-                      AppIcons.savingsGoal,
-                      color: AppColors.tealDark,
-                    ),
+                    const Icon(AppIcons.savingsGoal, color: AppColors.tealDark),
                     const SizedBox(width: 9),
                     Expanded(
                       child: Text(
