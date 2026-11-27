@@ -56,10 +56,7 @@ class FinanceSnapshot {
 }
 
 class TransactionPage {
-  const TransactionPage({
-    required this.transactions,
-    required this.hasMore,
-  });
+  const TransactionPage({required this.transactions, required this.hasMore});
 
   final List<FinancialTransaction> transactions;
   final bool hasMore;
@@ -68,8 +65,7 @@ class TransactionPage {
 class FinanceRepository {
   FinanceRepository({
     AppDatabase? database,
-    this._calculations =
-        const FinancialCalculationService(),
+    this._calculations = const FinancialCalculationService(),
   }) : _database = database ?? AppDatabase.instance;
 
   final AppDatabase _database;
@@ -279,7 +275,11 @@ class FinanceRepository {
     bool ascending = false,
   }) async {
     if (pageSize <= 0) {
-      throw ArgumentError.value(pageSize, 'pageSize', 'Must be greater than zero.');
+      throw ArgumentError.value(
+        pageSize,
+        'pageSize',
+        'Must be greater than zero.',
+      );
     }
 
     final where = <String>['user_id = ?', 'status = ?'];
@@ -314,9 +314,7 @@ class FinanceRepository {
     }
     final normalizedSearch = search?.trim();
     if (normalizedSearch != null && normalizedSearch.isNotEmpty) {
-      where.add(
-        '(description LIKE ? OR category LIKE ? OR notes LIKE ?)',
-      );
+      where.add('(description LIKE ? OR category LIKE ? OR notes LIKE ?)');
       final pattern = '%$normalizedSearch%';
       whereArgs.addAll([pattern, pattern, pattern]);
     }
@@ -420,15 +418,12 @@ class FinanceRepository {
     }
     final normalizedSearch = search?.trim();
     if (normalizedSearch != null && normalizedSearch.isNotEmpty) {
-      where.add(
-        '(description LIKE ? OR category LIKE ? OR notes LIKE ?)',
-      );
+      where.add('(description LIKE ? OR category LIKE ? OR notes LIKE ?)');
       final pattern = '%$normalizedSearch%';
       whereArgs.addAll([pattern, pattern, pattern]);
     }
     final db = await _database.database;
-    final rows = await db.rawQuery(
-      '''
+    final rows = await db.rawQuery('''
       SELECT currency_code,
         SUM(CASE WHEN type = 'income' THEN amount_minor ELSE 0 END) AS income_minor,
         SUM(CASE
@@ -439,9 +434,7 @@ class FinanceRepository {
       FROM transactions
       WHERE ${where.join(' AND ')}
       GROUP BY currency_code
-      ''',
-      whereArgs,
-    );
+      ''', whereArgs);
     final income = <String, int>{};
     final expenses = <String, int>{};
     for (final row in rows) {
@@ -461,7 +454,11 @@ class FinanceRepository {
     int monthCount = 6,
   }) async {
     if (monthCount <= 0) {
-      throw ArgumentError.value(monthCount, 'monthCount', 'Must be greater than zero.');
+      throw ArgumentError.value(
+        monthCount,
+        'monthCount',
+        'Must be greater than zero.',
+      );
     }
     final now = DateTime.now();
     final firstMonth = DateTime(now.year, now.month - monthCount + 1);
@@ -505,20 +502,21 @@ class FinanceRepository {
     }
     return {
       for (var index = 0; index < monthCount; index++)
-        _monthKey(DateTime(firstMonth.year, firstMonth.month + index)):
-            FinancialSummary(
-              incomeByCurrency:
-                  incomeByMonth[_monthKey(
-                    DateTime(firstMonth.year, firstMonth.month + index),
-                  )] ??
-                  const {},
-              expensesByCurrency:
-                  expensesByMonth[_monthKey(
-                    DateTime(firstMonth.year, firstMonth.month + index),
-                  )] ??
-                  const {},
-              balanceByCurrency: const {},
-            ),
+        _monthKey(
+          DateTime(firstMonth.year, firstMonth.month + index),
+        ): FinancialSummary(
+          incomeByCurrency:
+              incomeByMonth[_monthKey(
+                DateTime(firstMonth.year, firstMonth.month + index),
+              )] ??
+              const {},
+          expensesByCurrency:
+              expensesByMonth[_monthKey(
+                DateTime(firstMonth.year, firstMonth.month + index),
+              )] ??
+              const {},
+          balanceByCurrency: const {},
+        ),
     };
   }
 
@@ -563,9 +561,7 @@ class FinanceRepository {
     FinancialAccount account, {
     String? excludedTransactionId,
   }) async {
-    final excludedSource = excludedTransactionId == null
-        ? ''
-        : ' AND id != ?';
+    final excludedSource = excludedTransactionId == null ? '' : ' AND id != ?';
     final excludedDestination = excludedTransactionId == null
         ? ''
         : ' AND id != ?';
@@ -601,13 +597,12 @@ class FinanceRepository {
     return rows.first['balance_minor']! as int;
   }
 
-  Future<BudgetProgress> loadBudgetProgress(
-    FinancialBudget budget,
-  ) async {
+  Future<BudgetProgress> loadBudgetProgress(FinancialBudget budget) async {
     final db = await _database.database;
     final categoryClause = budget.categoryIds.isEmpty
         ? ''
-        : ' AND t.category IN (${List.filled(budget.categoryIds.length, '?').join(', ')})';
+        : ' AND (t.category_id IN (${List.filled(budget.categoryIds.length, '?').join(', ')})'
+              ' OR (t.category_id IS NULL AND t.category IN (${List.filled(budget.categoryIds.length, '?').join(', ')})))';
     final end = DateTime(
       budget.endDate.year,
       budget.endDate.month,
@@ -648,6 +643,7 @@ class FinanceRepository {
             AND (other.account_id IS NULL OR other.account_id = t.account_id)
             AND (
               other.category_ids = ''
+              OR instr('|' || other.category_ids || '|', '|' || COALESCE(t.category_id, t.category) || '|') > 0
               OR instr('|' || other.category_ids || '|', '|' || t.category || '|') > 0
             )
             AND (
@@ -672,6 +668,7 @@ class FinanceRepository {
         budget.accountId,
         budget.accountId,
         ...budget.categoryIds,
+        ...budget.categoryIds,
         budget.id,
         specificity,
         specificity,
@@ -682,13 +679,14 @@ class FinanceRepository {
     );
     var spent = rows.first['spent_minor']! as int;
     if (spent < 0) spent = 0;
-    final usage = budget.limitMinor <= 0
-        ? 0
-        : spent * 100 ~/ budget.limitMinor;
+    final usage = budget.limitMinor <= 0 ? 0 : spent * 100 ~/ budget.limitMinor;
     return BudgetProgress(
       spentMinor: spent,
       remainingMinor: budget.limitMinor - spent,
       usagePercent: usage,
+      exactUsagePercent: budget.limitMinor <= 0
+          ? 0
+          : spent * 100 / budget.limitMinor,
     );
   }
 
@@ -719,8 +717,7 @@ class FinanceRepository {
       args.add(accountId);
     }
     final db = await _database.database;
-    final rows = await db.rawQuery(
-      '''
+    final rows = await db.rawQuery('''
       SELECT category, SUM(CASE
         WHEN type = 'expense' THEN amount_minor
         WHEN type = 'refund' THEN -amount_minor
@@ -732,9 +729,7 @@ class FinanceRepository {
       GROUP BY category
       HAVING amount_minor > 0
       ORDER BY amount_minor DESC
-      ''',
-      args,
-    );
+      ''', args);
     return [
       for (final row in rows)
         CategorySpending(
@@ -816,6 +811,37 @@ class FinanceRepository {
         'Transaction currency must match the selected account currency.',
       );
     }
+    String? categoryId = entry.categoryId;
+    if (categoryId != null) {
+      final categoryRows = await db.query(
+        'categories',
+        where: 'id = ? AND user_id = ? AND is_active = 1',
+        whereArgs: [categoryId, entry.userId],
+        limit: 1,
+      );
+      final expectedType = entry.type == TransactionType.income
+          ? 'income'
+          : 'expense';
+      if (categoryRows.isEmpty || categoryRows.first['type'] != expectedType) {
+        throw const FinanceException(
+          'Select an active category of the matching transaction type.',
+        );
+      }
+    } else if (entry.type != TransactionType.transfer) {
+      final expectedType = entry.type == TransactionType.income
+          ? 'income'
+          : 'expense';
+      final categoryRows = await db.query(
+        'categories',
+        columns: ['id'],
+        where: 'user_id = ? AND name = ? AND type = ? AND is_active = 1',
+        whereArgs: [entry.userId, entry.category, expectedType],
+        limit: 1,
+      );
+      if (categoryRows.isNotEmpty) {
+        categoryId = categoryRows.first['id']! as String;
+      }
+    }
     if (entry.type == TransactionType.transfer) {
       final destination = accountById[entry.destinationAccountId];
       if (destination == null ||
@@ -870,6 +896,7 @@ class FinanceRepository {
       limit: 1,
     );
     final map = entry.toMap()
+      ..['category_id'] = categoryId
       ..['created_at'] =
           entry.createdAt?.millisecondsSinceEpoch ??
           (existing.isEmpty
@@ -1331,6 +1358,15 @@ class FinanceRepository {
     _requireName(name, 'Category name');
     final db = await _database.database;
     await db.transaction((transaction) async {
+      final existing = await transaction.query(
+        'categories',
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [id, uid],
+        limit: 1,
+      );
+      final oldName = existing.isEmpty
+          ? null
+          : existing.first['name']! as String;
       await _upsert(transaction, 'categories', {
         'id': id,
         'user_id': uid,
@@ -1338,10 +1374,33 @@ class FinanceRepository {
         'type': type,
         'icon': icon,
         'color': color,
-        'is_default': 0,
+        'is_default': existing.isEmpty
+            ? 0
+            : existing.first['is_default']! as int,
         'is_active': 1,
         'sync_status': SyncStatus.pending.name,
       });
+      if (oldName != null && oldName != name.trim()) {
+        final affectedTransactions = await transaction.query(
+          'transactions',
+          columns: ['id'],
+          where: 'user_id = ? AND category_id = ?',
+          whereArgs: [uid, id],
+        );
+        await transaction.update(
+          'transactions',
+          {
+            'category': name.trim(),
+            'sync_status': SyncStatus.pending.name,
+            'updated_at': DateTime.now().millisecondsSinceEpoch,
+          },
+          where: 'user_id = ? AND category_id = ?',
+          whereArgs: [uid, id],
+        );
+        for (final row in affectedTransactions) {
+          await _queue(transaction, uid, 'transactions', row['id']! as String);
+        }
+      }
       await _queue(transaction, uid, 'categories', id);
     });
   }
@@ -1589,8 +1648,7 @@ class FinanceRepository {
     await db.transaction((transaction) async {
       final conflicts = await transaction.query(
         'sync_conflicts',
-        where:
-            'user_id = ? AND collection_name = ? AND record_id = ?',
+        where: 'user_id = ? AND collection_name = ? AND record_id = ?',
         whereArgs: [uid, 'transactions', recordId],
         limit: 1,
       );
@@ -1611,9 +1669,7 @@ class FinanceRepository {
         );
       }
 
-      final decodedRemote = jsonDecode(
-        conflict['remote_record']! as String,
-      );
+      final decodedRemote = jsonDecode(conflict['remote_record']! as String);
       if (decodedRemote is! Map<String, dynamic>) {
         throw const FinanceException(
           'The other device transaction could not be read. No changes were made.',
@@ -1658,10 +1714,8 @@ class FinanceRepository {
       await transaction.update(
         'transactions',
         {
-          'version': (localVersion > remoteVersion
-                  ? localVersion
-                  : remoteVersion) +
-              1,
+          'version':
+              (localVersion > remoteVersion ? localVersion : remoteVersion) + 1,
           'sync_status': SyncStatus.pending.name,
           'updated_at': now,
         },
@@ -1697,6 +1751,40 @@ class FinanceRepository {
     if (table == null) return;
     final row = Map<String, Object?>.from(data)
       ..['sync_status'] = SyncStatus.synced.name;
+    if (collection == 'transactions' &&
+        row['category_id'] == null &&
+        row['category'] is String) {
+      final type = row['type'] == 'income' ? 'income' : 'expense';
+      final categoryRows = await db.query(
+        'categories',
+        columns: ['id'],
+        where: 'user_id = ? AND name = ? AND type = ?',
+        whereArgs: [uid, row['category'], type],
+        limit: 1,
+      );
+      if (categoryRows.isNotEmpty) {
+        row['category_id'] = categoryRows.first['id']! as String;
+      }
+    }
+    if (collection == 'budgets' && row['category_ids'] is String) {
+      final categoryRows = await db.query(
+        'categories',
+        columns: ['id', 'name'],
+        where: 'user_id = ? AND type = ?',
+        whereArgs: [uid, 'expense'],
+      );
+      final idsByName = {
+        for (final category in categoryRows)
+          category['name']! as String: category['id']! as String,
+      };
+      final names = (row['category_ids']! as String)
+          .split('|')
+          .where((id) => id.isNotEmpty);
+      row['category_ids'] = names
+          .map((name) => idsByName[name] ?? name)
+          .toSet()
+          .join('|');
+    }
     await _upsert(db, table, row);
   }
 

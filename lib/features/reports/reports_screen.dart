@@ -1223,7 +1223,7 @@ class _BudgetReport extends StatelessWidget {
               final progress = finance.budgetProgress(budget);
               final color = progress.remainingMinor < 0
                   ? AppColors.expense
-                  : progress.usagePercent >= budget.alertPercentage
+                  : progress.preciseUsagePercent >= budget.alertPercentage
                   ? AppColors.amber
                   : AppColors.income;
               final ratio = budget.limitMinor <= 0

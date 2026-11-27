@@ -3,12 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../../core/services/finance_controller.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/utils/validators.dart';
 import '../../core/widgets/feedback.dart';
 import '../../core/widgets/glass_container.dart';
 import '../../core/widgets/glass_scaffold.dart';
-import '../../core/widgets/glass_text_field.dart';
 import '../../core/widgets/screen_header.dart';
+import 'category_editor.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -40,7 +39,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             subtitle: 'Keep transactions easy to organize.',
             trailing: IconButton.filled(
               tooltip: 'Add category',
-              onPressed: () => _addCategory(context),
+              onPressed: () => _editCategory(context, _type),
               icon: const Icon(Icons.add_rounded),
             ),
             showBack: true,
@@ -81,21 +80,39 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: AppColors.teal.withValues(alpha: 0.13),
-                      child: const Icon(Icons.sell_outlined, color: AppColors.tealDark),
+                      child: Icon(
+                        categoryIcon(category['icon'] as String?),
+                        color: AppColors.tealDark,
+                      ),
                     ),
                     title: Text(category['name']! as String),
-                    subtitle: Text(isDefault ? 'Built-in category' : 'Custom category'),
-                    trailing: isDefault
-                        ? null
-                        : IconButton(
-                            tooltip: 'Archive category',
-                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
-                            onPressed: () => _archiveCategory(
-                              context,
-                              category['id']! as String,
-                              category['name']! as String,
-                            ),
+                    subtitle: Text(
+                      isDefault ? 'Built-in category' : 'Custom category',
+                    ),
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editCategory(context, _type, category: category);
+                        } else if (value == 'archive' && !isDefault) {
+                          _archiveCategory(
+                            context,
+                            category['id']! as String,
+                            category['name']! as String,
+                          );
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Text('Edit category'),
+                        ),
+                        if (!isDefault)
+                          const PopupMenuItem(
+                            value: 'archive',
+                            child: Text('Archive category'),
                           ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -116,61 +133,28 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 }
 
-Future<void> _addCategory(BuildContext context) async {
-  final controller = TextEditingController();
-  final formKey = GlobalKey<FormState>();
-  var type = 'expense';
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        title: const Text('Add category'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GlassTextField(
-                controller: controller,
-                label: 'Category name',
-                icon: Icons.sell_outlined,
-                validator: (value) => Validators.required(value, 'Category name'),
-              ),
-              const SizedBox(height: 12),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'expense', label: Text('Expense')),
-                  ButtonSegment(value: 'income', label: Text('Income')),
-                ],
-                selected: {type},
-                onSelectionChanged: (selection) => setState(() => type = selection.first),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              try {
-                await context.read<FinanceController>().saveCategory(
-                  name: controller.text.trim(),
-                  type: type,
-                );
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-                if (context.mounted) showAppMessage(context, 'Category added.');
-              } catch (error) {
-                if (dialogContext.mounted) showAppMessage(dialogContext, error.toString(), isError: true);
-              }
-            },
-            child: const Text('Add category'),
-          ),
-        ],
-      ),
-    ),
-  );
-  controller.dispose();
+Future<void> _editCategory(
+  BuildContext context,
+  String type, {
+  Map<String, Object?>? category,
+}) async {
+  try {
+    final id = await showCategoryEditor(
+      context,
+      existing: category,
+      initialType: type,
+    );
+    if (id != null && context.mounted) {
+      showAppMessage(
+        context,
+        category == null ? 'Category added.' : 'Category updated.',
+      );
+    }
+  } catch (error) {
+    if (context.mounted) {
+      showAppMessage(context, error.toString(), isError: true);
+    }
+  }
 }
 
 Future<void> _archiveCategory(
@@ -189,6 +173,8 @@ Future<void> _archiveCategory(
     await context.read<FinanceController>().archiveCategory(id);
     if (context.mounted) showAppMessage(context, 'Category archived.');
   } catch (error) {
-    if (context.mounted) showAppMessage(context, error.toString(), isError: true);
+    if (context.mounted) {
+      showAppMessage(context, error.toString(), isError: true);
+    }
   }
 }

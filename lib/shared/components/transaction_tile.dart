@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../app/routes/route_names.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_icons.dart';
+import '../../core/services/finance_controller.dart';
 import '../../core/utils/money.dart';
 import '../../core/widgets/glass_container.dart';
 import '../../data/models/finance_models.dart';
@@ -21,19 +23,33 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style    = CategoryStyle.forName(
-      transaction.category,
-      income: transaction.type == TransactionType.income ||
-              transaction.type == TransactionType.refund,
+    final categoryIconKey = context.select<FinanceController, String?>(
+      (finance) => finance.categories
+          .where((category) => category['id'] == transaction.categoryId)
+          .map((category) => category['icon'] as String?)
+          .firstOrNull,
     );
-    final incoming = transaction.type == TransactionType.income ||
-                     transaction.type == TransactionType.refund;
+    final style = CategoryStyle.forName(
+      transaction.category,
+      income:
+          transaction.type == TransactionType.income ||
+          transaction.type == TransactionType.refund,
+    );
+    final incoming =
+        transaction.type == TransactionType.income ||
+        transaction.type == TransactionType.refund;
     final isTransfer = transaction.type == TransactionType.transfer;
-    final prefix   = isTransfer ? '' : incoming ? '+' : '−';
+    final prefix = isTransfer
+        ? ''
+        : incoming
+        ? '+'
+        : '−';
 
     final IconData tileIcon = isTransfer
         ? AppIcons.transfer
-        : style.icon;
+        : categoryIconKey == null
+        ? style.icon
+        : AppIcons.forCategoryKey(categoryIconKey);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -74,10 +90,7 @@ class TransactionTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '$prefix${formatMinorUnits(
-                  transaction.amountMinor,
-                  transaction.currencyCode,
-                )}',
+                '$prefix${formatMinorUnits(transaction.amountMinor, transaction.currencyCode)}',
                 style: TextStyle(
                   color: incoming
                       ? Theme.of(context).colorScheme.primary
@@ -90,10 +103,7 @@ class TransactionTile extends StatelessWidget {
                 ),
               ),
               if (isTransfer)
-                Text(
-                  'Transfer',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text('Transfer', style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
           onTap: () => Navigator.pushNamed(

@@ -27,11 +27,22 @@ class BudgetProgress {
     required this.spentMinor,
     required this.remainingMinor,
     required this.usagePercent,
+    this.exactUsagePercent,
   });
 
   final int spentMinor;
   final int remainingMinor;
   final int usagePercent;
+  final double? exactUsagePercent;
+
+  double get preciseUsagePercent =>
+      exactUsagePercent ?? usagePercent.toDouble();
+
+  String get usageLabel {
+    final value = preciseUsagePercent;
+    final formatted = value.toStringAsFixed(1);
+    return '${formatted.endsWith('.0') ? formatted.substring(0, formatted.length - 2) : formatted}%';
+  }
 }
 
 class CategorySpending {
@@ -139,7 +150,9 @@ class FinancialCalculationService {
         continue;
       }
       if (budget.categoryIds.isNotEmpty &&
-          !budget.categoryIds.contains(transaction.category)) {
+          !budget.categoryIds.contains(
+            transaction.categoryId ?? transaction.category,
+          )) {
         continue;
       }
       if (transaction.type == TransactionType.expense) {
@@ -156,6 +169,9 @@ class FinancialCalculationService {
       spentMinor: spent,
       remainingMinor: budget.limitMinor - spent,
       usagePercent: usage,
+      exactUsagePercent: budget.limitMinor <= 0
+          ? 0
+          : spent * 100 / budget.limitMinor,
     );
   }
 

@@ -683,9 +683,9 @@ class _BudgetPreview extends StatelessWidget {
     final ratio = budget.limitMinor <= 0
         ? 0.0
         : (progress.spentMinor / budget.limitMinor).clamp(0, 1).toDouble();
-    final color = progress.usagePercent >= 100
+    final color = progress.preciseUsagePercent >= 100
         ? AppColors.expense
-        : progress.usagePercent >= 90
+        : progress.preciseUsagePercent >= 90
         ? AppColors.amber
         : AppColors.teal;
     return Padding(
@@ -705,7 +705,7 @@ class _BudgetPreview extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${progress.usagePercent}%',
+                  progress.usageLabel,
                   style: TextStyle(color: color, fontWeight: FontWeight.w800),
                 ),
               ],

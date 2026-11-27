@@ -128,6 +128,7 @@ class FinancialTransaction {
     required this.amountMinor,
     required this.currencyCode,
     required this.category,
+    this.categoryId,
     required this.description,
     required this.occurredAt,
     this.destinationAccountId,
@@ -154,6 +155,7 @@ class FinancialTransaction {
   final int amountMinor;
   final String currencyCode;
   final String category;
+  final String? categoryId;
   final String description;
   final DateTime occurredAt;
   final String? destinationAccountId;
@@ -181,6 +183,7 @@ class FinancialTransaction {
       amountMinor: map['amount_minor']! as int,
       currencyCode: map['currency_code']! as String,
       category: map['category']! as String,
+      categoryId: map['category_id'] as String?,
       description: map['description']! as String,
       occurredAt: _dateTime(map['transaction_date']) ?? DateTime.now(),
       destinationAccountId: map['destination_account_id'] as String?,
@@ -209,6 +212,7 @@ class FinancialTransaction {
     'amount_minor': amountMinor,
     'currency_code': currencyCode,
     'category': category,
+    'category_id': categoryId,
     'description': description,
     'transaction_date': occurredAt.millisecondsSinceEpoch,
     'destination_account_id': destinationAccountId,
@@ -236,6 +240,7 @@ class FinancialTransaction {
     'amountMinor': amountMinor,
     'currencyCode': currencyCode,
     'category': category,
+    'categoryId': categoryId,
     'description': description,
     'transactionDate': occurredAt.millisecondsSinceEpoch,
     'destinationAccountId': destinationAccountId,
@@ -262,6 +267,7 @@ class FinancialTransaction {
     int? amountMinor,
     String? currencyCode,
     String? category,
+    String? categoryId,
     String? description,
     DateTime? occurredAt,
     String? destinationAccountId,
@@ -288,6 +294,7 @@ class FinancialTransaction {
       amountMinor: amountMinor ?? this.amountMinor,
       currencyCode: currencyCode ?? this.currencyCode,
       category: category ?? this.category,
+      categoryId: categoryId ?? this.categoryId,
       description: description ?? this.description,
       occurredAt: occurredAt ?? this.occurredAt,
       destinationAccountId: destinationAccountId ?? this.destinationAccountId,

@@ -10,6 +10,8 @@ import '../../core/utils/money.dart';
 import '../../core/widgets/glass_container.dart';
 import '../../data/models/finance_models.dart';
 import '../../data/repositories/finance_repository.dart';
+import '../accounts/wallet_editor.dart';
+import '../categories/category_editor.dart';
 
 Future<void> showQuickAddTransaction(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -35,6 +37,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
   String? _accountId;
   String? _destinationAccountId;
   String? _category;
+  String? _categoryId;
   DateTime _date = DateTime.now();
   bool _busy = false;
   bool _moreDetails = false;
@@ -97,6 +100,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
         amountMinor: amount,
         currencyCode: account.currencyCode,
         category: category,
+        categoryId: _type == TransactionType.transfer ? null : _categoryId,
         description: _note.text.trim().isEmpty ? category : _note.text.trim(),
         occurredAt: _date,
         destinationAccountId: destination?.id,
@@ -139,6 +143,61 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
     }
   }
 
+  Future<void> _addCategory(String type) async {
+    final id = await showCategoryEditor(context, initialType: type);
+    if (id == null || !mounted) return;
+    final category = context
+        .read<FinanceController>()
+        .categories
+        .where((item) => item['id'] == id)
+        .firstOrNull;
+    if (category == null) return;
+    setState(() {
+      _categoryId = id;
+      _category = category['name']! as String;
+    });
+  }
+
+  Future<void> _editCategory(Map<String, Object?> category) async {
+    final id = await showCategoryEditor(context, existing: category);
+    if (id == null || !mounted) return;
+    final updated = context
+        .read<FinanceController>()
+        .categories
+        .where((item) => item['id'] == id)
+        .firstOrNull;
+    if (updated == null) return;
+    setState(() {
+      _categoryId = id;
+      _category = updated['name']! as String;
+    });
+  }
+
+  Future<void> _addWallet() async {
+    final account = await showWalletEditor(context);
+    if (account == null || !mounted) return;
+    setState(() {
+      _accountId = account.id;
+      if (_type == TransactionType.transfer &&
+          _destinationAccountId == account.id) {
+        _destinationAccountId = context
+            .read<FinanceController>()
+            .activeAccounts
+            .where((item) => item.id != account.id)
+            .firstOrNull
+            ?.id;
+      }
+    });
+  }
+
+  int? _tryParseAmount(String input, String currency) {
+    try {
+      return parseMinorUnits(input, currency);
+    } on FormatException {
+      return null;
+    }
+  }
+
   Future<void> _pickDate() async {
     final selected = await showDatePicker(
       context: context,
@@ -168,9 +227,19 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
           ?.id;
     }
 
-    final categories = _type == TransactionType.income
-        ? AppConstants.incomeCategories
-        : AppConstants.expenseCategories;
+    final isIncome = _type == TransactionType.income;
+    final categoryRows = finance.categories
+        .where(
+          (category) =>
+              category['type'] == (isIncome ? 'income' : 'expense') &&
+              (category['is_active'] as int? ?? 1) == 1,
+        )
+        .toList();
+    final categories = categoryRows.isEmpty
+        ? isIncome
+              ? AppConstants.incomeCategories
+              : AppConstants.expenseCategories
+        : categoryRows.map((category) => category['name']! as String).toList();
     final lastCategory = preferences.getString('moneywise.lastCategory');
     if (_type != TransactionType.transfer &&
         (_category == null ||
@@ -179,7 +248,30 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
           ? lastCategory
           : categories.first;
     }
+    if (_categoryId == null && categoryRows.isNotEmpty) {
+      _categoryId = categoryRows
+          .where((category) => category['name'] == _category)
+          .map((category) => category['id']! as String)
+          .firstOrNull;
+    }
+    final selectedCategoryRow = categoryRows
+        .where(
+          (category) =>
+              category['id'] == _categoryId || category['name'] == _category,
+        )
+        .firstOrNull;
     final account = accounts.where((item) => item.id == _accountId).firstOrNull;
+    final availableBalance = account == null
+        ? null
+        : finance.accountBalance(account);
+    final amountPreview = account == null
+        ? null
+        : _tryParseAmount(_amount.text, account.currencyCode);
+    final balanceAfter = availableBalance == null || amountPreview == null
+        ? null
+        : _type == TransactionType.income
+        ? availableBalance + amountPreview
+        : availableBalance - amountPreview;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return AnimatedPadding(
@@ -235,12 +327,14 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
                   setState(() {
                     _type = values.first;
                     _category = null;
+                    _categoryId = null;
                   });
                 },
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _amount,
+                onChanged: (_) => setState(() {}),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
@@ -259,21 +353,63 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
               ),
               const SizedBox(height: 10),
               if (_type != TransactionType.transfer)
-                DropdownButtonFormField<String>(
-                  initialValue: categories.contains(_category)
-                      ? _category
-                      : categories.first,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    prefixIcon: Icon(AppIcons.category),
-                  ),
-                  items: categories
-                      .map(
-                        (item) =>
-                            DropdownMenuItem(value: item, child: Text(item)),
-                      )
-                      .toList(),
-                  onChanged: (value) => setState(() => _category = value),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: categories.contains(_category)
+                            ? _category
+                            : categories.first,
+                        decoration: const InputDecoration(
+                          labelText: 'Category',
+                          prefixIcon: Icon(AppIcons.category),
+                        ),
+                        items: categories.map((item) {
+                          final categoryRow = categoryRows
+                              .where((category) => category['name'] == item)
+                              .firstOrNull;
+                          return DropdownMenuItem(
+                                value: item,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      categoryIcon(
+                                        categoryRow?['icon'] as String?,
+                                      ),
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(item),
+                                  ],
+                                ),
+                              );
+                        }).toList(),
+                        onChanged: (value) => setState(() {
+                          _category = value;
+                          _categoryId = categoryRows
+                              .where((category) => category['name'] == value)
+                              .map((category) => category['id']! as String)
+                              .firstOrNull;
+                        }),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Add category',
+                      onPressed: _busy
+                          ? null
+                          : () => _addCategory(isIncome ? 'income' : 'expense'),
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
+                    if (selectedCategoryRow != null)
+                      IconButton(
+                        tooltip: 'Edit category',
+                        onPressed: _busy
+                            ? null
+                            : () => _editCategory(selectedCategoryRow),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                  ],
                 )
               else
                 DropdownButtonFormField<String>(
@@ -295,24 +431,47 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
                       setState(() => _destinationAccountId = value),
                 ),
               const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                initialValue: _accountId,
-                decoration: InputDecoration(
-                  labelText: _type == TransactionType.transfer
-                      ? 'From account'
-                      : 'Account',
-                  prefixIcon: Icon(AppIcons.accountCash),
-                ),
-                items: accounts
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item.id,
-                        child: Text(item.name),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _accountId,
+                      decoration: InputDecoration(
+                        labelText: _type == TransactionType.transfer
+                            ? 'From wallet'
+                            : 'Wallet',
+                        prefixIcon: Icon(AppIcons.accountCash),
                       ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _accountId = value),
+                      items: accounts
+                          .map(
+                            (item) => DropdownMenuItem(
+                              value: item.id,
+                              child: Text(
+                                '${item.name} · ${formatMinorUnits(finance.accountBalance(item), item.currencyCode)}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) => setState(() => _accountId = value),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Add wallet',
+                    onPressed: _busy ? null : _addWallet,
+                    icon: const Icon(Icons.add_circle_outline),
+                  ),
+                ],
               ),
+              if (account != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5, left: 3),
+                  child: Text(
+                    'Available: ${formatMinorUnits(availableBalance!, account.currencyCode)}'
+                    '${balanceAfter == null ? '' : ' · After: ${formatMinorUnits(balanceAfter, account.currencyCode)}'}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: () => setState(() => _moreDetails = !_moreDetails),

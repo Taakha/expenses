@@ -389,15 +389,26 @@ class FinanceController extends ChangeNotifier {
   Future<void> saveRecurring(RecurringRule rule) =>
       _run(() => _repository.saveRecurringRule(rule));
 
-  Future<void> saveCategory({required String name, required String type}) =>
-      _run(
-        () => _repository.saveCategory(
-          uid: _requireUid(),
-          id: FinanceRepository.createId(),
-          name: name,
-          type: type,
-        ),
-      );
+  Future<String> saveCategory({
+    String? id,
+    required String name,
+    required String type,
+    String icon = 'category',
+    String color = '#31C99A',
+  }) async {
+    final categoryId = id ?? FinanceRepository.createId();
+    await _run(
+      () => _repository.saveCategory(
+        uid: _requireUid(),
+        id: categoryId,
+        name: name,
+        type: type,
+        icon: icon,
+        color: color,
+      ),
+    );
+    return categoryId;
+  }
 
   Future<void> archiveCategory(String id) =>
       _run(() => _repository.archiveCategory(_requireUid(), id));
@@ -477,11 +488,11 @@ class FinanceController extends ChangeNotifier {
     var changed = false;
     for (final budget in budgets) {
       final progress = budgetProgress(budget);
-      final threshold = progress.usagePercent >= 100
+      final threshold = progress.preciseUsagePercent >= 100
           ? 100
-          : progress.usagePercent >= 90
+          : progress.preciseUsagePercent >= 90
           ? 90
-          : progress.usagePercent >= budget.alertPercentage
+          : progress.preciseUsagePercent >= budget.alertPercentage
           ? budget.alertPercentage
           : 0;
       if (threshold == 0) continue;
@@ -492,7 +503,7 @@ class FinanceController extends ChangeNotifier {
           id: 'budget_$periodKey',
           userId: uid,
           title: threshold >= 100 ? 'Budget exceeded' : 'Budget getting low',
-          body: '${budget.name} is at ${progress.usagePercent}% of its limit.',
+          body: '${budget.name} is at ${progress.usageLabel} of its limit.',
           type: 'budget',
           createdAt: DateTime.now(),
         ),

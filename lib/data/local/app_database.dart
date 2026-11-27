@@ -27,7 +27,7 @@ class AppDatabase {
     final databasePath = await getDatabasesPath();
     _database = await openDatabase(
       '$databasePath/moneywise.db',
-      version: 3,
+      version: 4,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _createSchema,
       onUpgrade: _upgradeSchema,
@@ -83,6 +83,7 @@ class AppDatabase {
         amount_minor INTEGER NOT NULL,
         currency_code TEXT NOT NULL,
         category TEXT NOT NULL,
+        category_id TEXT,
         description TEXT NOT NULL,
         transaction_date INTEGER NOT NULL,
         destination_account_id TEXT,
@@ -110,6 +111,9 @@ class AppDatabase {
       'CREATE INDEX transactions_account_date_idx ON transactions(account_id, transaction_date DESC)',
     );
     await _createTransactionIndexes(db);
+    await db.execute(
+      'CREATE INDEX transactions_category_id_idx ON transactions(user_id, category_id, status, transaction_date DESC)',
+    );
     await db.execute('''
       CREATE TABLE budgets (
         id TEXT PRIMARY KEY,
@@ -327,6 +331,65 @@ class AppDatabase {
       await db.execute(
         'CREATE INDEX budgets_match_idx ON budgets(user_id, is_archived, currency_code, start_date, end_date, account_id)',
       );
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE transactions ADD COLUMN category_id TEXT');
+      await db.execute(
+        'CREATE INDEX transactions_category_id_idx ON transactions(user_id, category_id, status, transaction_date DESC)',
+      );
+      final categories = await db.query(
+        'categories',
+        columns: ['id', 'user_id', 'name', 'type'],
+      );
+      final categoryIds = {
+        for (final row in categories)
+          '${row['user_id']}|${row['name']}|${row['type']}':
+              row['id']! as String,
+      };
+      final transactions = await db.query(
+        'transactions',
+        columns: ['id', 'user_id', 'type', 'category'],
+      );
+      for (final row in transactions) {
+        final type = row['type'] == 'income' ? 'income' : 'expense';
+        final categoryId =
+            categoryIds['${row['user_id']}|${row['category']}|$type'];
+        if (categoryId != null) {
+          await db.update(
+            'transactions',
+            {'category_id': categoryId},
+            where: 'id = ? AND user_id = ?',
+            whereArgs: [row['id'], row['user_id']],
+          );
+        }
+      }
+      final budgets = await db.query(
+        'budgets',
+        columns: ['id', 'user_id', 'category_ids'],
+      );
+      for (final row in budgets) {
+        final oldIds = (row['category_ids'] as String? ?? '')
+            .split('|')
+            .where((id) => id.isNotEmpty);
+        final newIds =
+            oldIds
+                .map(
+                  (name) =>
+                      categoryIds['${row['user_id']}|$name|expense'] ?? name,
+                )
+                .toSet()
+                .toList()
+              ..sort();
+        final serialized = newIds.join('|');
+        if (serialized != row['category_ids']) {
+          await db.update(
+            'budgets',
+            {'category_ids': serialized},
+            where: 'id = ? AND user_id = ?',
+            whereArgs: [row['id'], row['user_id']],
+          );
+        }
+      }
     }
   }
 

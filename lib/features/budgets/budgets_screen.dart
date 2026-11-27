@@ -77,6 +77,10 @@ class BudgetsScreen extends StatelessWidget {
               (budget) => _BudgetCard(
                 budget: budget,
                 progress: finance.budgetProgress(budget),
+                categoryNames: {
+                  for (final category in finance.categories)
+                    category['id']! as String: category['name']! as String,
+                },
                 accountName: budget.accountId == null
                     ? null
                     : finance.accounts
@@ -160,6 +164,7 @@ class _BudgetCard extends StatelessWidget {
   const _BudgetCard({
     required this.budget,
     required this.progress,
+    required this.categoryNames,
     required this.accountName,
     required this.onEdit,
     required this.onDelete,
@@ -167,15 +172,16 @@ class _BudgetCard extends StatelessWidget {
 
   final FinancialBudget budget;
   final BudgetProgress progress;
+  final Map<String, String> categoryNames;
   final String? accountName;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final color = progress.usagePercent >= 100
+    final color = progress.preciseUsagePercent >= 100
         ? AppColors.expense
-        : progress.usagePercent >= 90
+        : progress.preciseUsagePercent >= 90
         ? AppColors.amber
         : AppColors.teal;
     final ratio = budget.limitMinor == 0
@@ -214,7 +220,9 @@ class _BudgetCard extends StatelessWidget {
                         [
                           budget.categoryIds.isEmpty
                               ? 'All expense categories'
-                              : budget.categoryIds.join(', '),
+                              : budget.categoryIds
+                                    .map((id) => categoryNames[id] ?? id)
+                                    .join(', '),
                           accountName ?? 'All accounts',
                         ].join(' · '),
                         maxLines: 1,
@@ -255,7 +263,7 @@ class _BudgetCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '${progress.usagePercent}%',
+                  progress.usageLabel,
                   style: TextStyle(
                     color: color,
                     fontSize: 12,
@@ -279,15 +287,17 @@ class _BudgetCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    progress.usagePercent >= 100
+                    progress.preciseUsagePercent >= 100
                         ? 'Budget exceeded'
-                        : progress.usagePercent >= 90
+                        : progress.preciseUsagePercent >= 90
                         ? 'Almost exhausted'
-                        : progress.usagePercent >= budget.alertPercentage
+                        : progress.preciseUsagePercent >=
+                              budget.alertPercentage
                         ? 'Spending is approaching your limit'
                         : 'Remaining',
                     style: TextStyle(
-                      color: progress.usagePercent >= budget.alertPercentage
+                      color: progress.preciseUsagePercent >=
+                              budget.alertPercentage
                           ? color
                           : Theme.of(context).textTheme.bodySmall?.color,
                       fontSize: 11,
@@ -370,7 +380,6 @@ Future<void> _editBudget(
         (item) =>
             item['type'] == 'expense' && (item['is_active'] as int? ?? 1) == 1,
       )
-      .map((item) => item['name']! as String)
       .toList();
   await showDialog<void>(
     context: context,
@@ -463,13 +472,16 @@ Future<void> _editBudget(
                     children: availableCategories
                         .map(
                           (category) => FilterChip(
-                            label: Text(category),
-                            selected: selectedCategories.contains(category),
+                            label: Text(category['name']! as String),
+                            selected: selectedCategories.contains(
+                              category['id']! as String,
+                            ),
                             onSelected: (selected) => setState(() {
+                              final categoryId = category['id']! as String;
                               if (selected) {
-                                selectedCategories.add(category);
+                                selectedCategories.add(categoryId);
                               } else {
-                                selectedCategories.remove(category);
+                                selectedCategories.remove(categoryId);
                               }
                             }),
                           ),

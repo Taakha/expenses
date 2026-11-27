@@ -22,6 +22,8 @@ import '../../core/widgets/screen_header.dart';
 import '../../app/routes/route_names.dart';
 import '../../data/models/finance_models.dart';
 import '../../data/repositories/finance_repository.dart';
+import '../accounts/wallet_editor.dart';
+import '../categories/category_editor.dart';
 
 class TransactionFormScreen extends StatefulWidget {
   const TransactionFormScreen({
@@ -49,6 +51,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   String? _accountId;
   String? _destinationAccountId;
   String? _category;
+  String? _categoryId;
   String _paymentMethod = 'Cash';
   bool _busy = false;
   String? _error;
@@ -84,6 +87,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     _accountId = existing?.accountId;
     _destinationAccountId = existing?.destinationAccountId;
     _category = existing?.category;
+    _categoryId = existing?.categoryId;
     _paymentMethod = existing?.paymentMethod ?? 'Cash';
     _receiptsLoaded = existing == null;
   }
@@ -232,6 +236,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             ? 'Transfer'
             : _category ??
                   (_type == TransactionType.income ? 'Salary' : 'Other'),
+        categoryId: _type == TransactionType.transfer ? null : _categoryId,
         description: _description.text.trim(),
         occurredAt: _date,
         destinationAccountId: destination?.id,
@@ -318,6 +323,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       currencyCode: transaction.currencyCode,
       accountId: transaction.accountId,
       category: transaction.category,
+      categoryId: transaction.categoryId,
       date: transaction.occurredAt,
     );
     var title = 'No matching budget';
@@ -356,6 +362,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final finance = context.read<FinanceController>();
     final (snapshot, preferredCurrency) = context
         .select<FinanceController, (FinanceSnapshot?, String)>(
           (finance) => (finance.snapshot, finance.preferredCurrency),
@@ -372,28 +379,96 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             currencyCode: selectedAccount.currencyCode,
             accountId: selectedAccount.id,
             category: _category ?? 'Other',
+            categoryId: _categoryId,
             date: _date,
           )
         : null;
     final isIncome = _type == TransactionType.income;
-    final categories = (snapshot?.categories ?? const <Map<String, Object?>>[])
-        .where(
-          (category) =>
-              category['type'] == (isIncome ? 'income' : 'expense') &&
-              (category['is_active'] as int? ?? 1) == 1,
-        )
-        .map((category) => category['name']! as String)
-        .toList();
-    if (categories.isEmpty) {
-      categories.addAll(
-        isIncome
-            ? AppConstants.incomeCategories
-            : AppConstants.expenseCategories,
-      );
-    }
+    final categoryRows =
+        (snapshot?.categories ?? const <Map<String, Object?>>[])
+            .where(
+              (category) =>
+                  category['type'] == (isIncome ? 'income' : 'expense') &&
+                  (category['is_active'] as int? ?? 1) == 1,
+            )
+            .toList();
+    final categories = categoryRows.isEmpty
+        ? isIncome
+              ? AppConstants.incomeCategories
+              : AppConstants.expenseCategories
+        : categoryRows.map((category) => category['name']! as String).toList();
     if (_category == null || !categories.contains(_category)) {
       _category = categories.first;
     }
+    if (_categoryId == null && categoryRows.isNotEmpty) {
+      _categoryId = categoryRows
+          .where((category) => category['name'] == _category)
+          .map((category) => category['id']! as String)
+          .firstOrNull;
+    }
+    if (_categoryId != null) {
+      final categoryForId = categoryRows
+          .where((category) => category['id'] == _categoryId)
+          .firstOrNull;
+      if (categoryForId != null) {
+        _category = categoryForId['name']! as String;
+      }
+    }
+    final selectedCategoryRow = categoryRows
+        .where(
+          (category) =>
+              category['id'] == _categoryId || category['name'] == _category,
+        )
+        .firstOrNull;
+    final walletField = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _accountId,
+                decoration: const InputDecoration(
+                  labelText: 'Wallet',
+                  prefixIcon: Icon(Icons.wallet_outlined),
+                ),
+                items: accounts
+                    .map(
+                      (account) => DropdownMenuItem(
+                        value: account.id,
+                        child: Text(
+                          '${account.name} · ${formatMinorUnits(finance.accountBalance(account), account.currencyCode)}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => _accountId = value),
+                validator: (value) =>
+                    value == null ? 'Select a wallet' : null,
+              ),
+            ),
+            IconButton(
+              tooltip: 'Add wallet',
+              onPressed: _busy ? null : () => _addWallet(context),
+              icon: const Icon(Icons.add_circle_outline),
+            ),
+          ],
+        ),
+        if (selectedAccount != null) ...[
+          const SizedBox(height: 5),
+          _WalletBalancePreview(
+            account: selectedAccount,
+            availableMinor: finance.accountBalance(selectedAccount),
+            transactionType: _type,
+            amountMinor: _previewAmount(
+              _amount.text,
+              selectedAccount.currencyCode,
+            ),
+          ),
+        ],
+      ],
+    );
     return GlassScaffold(
       padding: const EdgeInsets.symmetric(horizontal: 17),
       child: ListView(
@@ -452,6 +527,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                         setState(() {
                           _type = value.first;
                           _category = null;
+                          _categoryId = null;
                         });
                       },
                     ),
@@ -461,6 +537,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                       label:
                           'Amount (${selectedAccount?.currencyCode ?? preferredCurrency})',
                       icon: Icons.payments_outlined,
+                      onChanged: (_) => setState(() {}),
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
@@ -485,27 +562,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                           Validators.required(value, 'Description'),
                     ),
                     const SizedBox(height: 11),
-                    DropdownButtonFormField<String>(
-                      initialValue: _accountId,
-                      decoration: const InputDecoration(
-                        labelText: 'Account',
-                        prefixIcon: Icon(Icons.wallet_outlined),
-                      ),
-                      items: accounts
-                          .map(
-                            (account) => DropdownMenuItem(
-                              value: account.id,
-                              child: Text(
-                                '${account.name} · ${account.currencyCode}',
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) => setState(() => _accountId = value),
-                      validator: (value) =>
-                          value == null ? 'Select an account' : null,
-                    ),
                     if (_type == TransactionType.transfer) ...[
+                      walletField,
                       const SizedBox(height: 11),
                       DropdownButtonFormField<String>(
                         initialValue: _destinationAccountId,
@@ -573,23 +631,75 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                       ],
                     ] else ...[
                       const SizedBox(height: 11),
-                      DropdownButtonFormField<String>(
-                        initialValue: categories.contains(_category)
-                            ? _category
-                            : categories.first,
-                        decoration: const InputDecoration(
-                          labelText: 'Category',
-                          prefixIcon: Icon(Icons.category_outlined),
-                        ),
-                        items: categories
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item,
-                                child: Text(item),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              initialValue: categories.contains(_category)
+                                  ? _category
+                                  : categories.first,
+                              decoration: const InputDecoration(
+                                labelText: 'Category',
+                                prefixIcon: Icon(Icons.category_outlined),
                               ),
-                            )
-                            .toList(),
-                        onChanged: (value) => setState(() => _category = value),
+                              items: categories.map((item) {
+                                final categoryRow = categoryRows
+                                    .where(
+                                      (category) => category['name'] == item,
+                                    )
+                                    .firstOrNull;
+                                return DropdownMenuItem(
+                                      value: item,
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            categoryIcon(
+                                              categoryRow?['icon'] as String?,
+                                            ),
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(item),
+                                        ],
+                                      ),
+                                    );
+                              }).toList(),
+                              onChanged: (value) => setState(() {
+                                _category = value;
+                                _categoryId = categoryRows
+                                    .where(
+                                      (category) => category['name'] == value,
+                                    )
+                                    .map(
+                                      (category) => category['id']! as String,
+                                    )
+                                    .firstOrNull;
+                              }),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Add category',
+                            onPressed: _busy
+                                ? null
+                                : () => _addCategory(
+                                    context,
+                                    isIncome ? 'income' : 'expense',
+                                  ),
+                            icon: const Icon(Icons.add_circle_outline),
+                          ),
+                          if (selectedCategoryRow != null)
+                            IconButton(
+                              tooltip: 'Edit category',
+                              onPressed: _busy
+                                  ? null
+                                  : () => _editCategory(
+                                      context,
+                                      selectedCategoryRow,
+                                    ),
+                              icon: const Icon(Icons.edit_outlined),
+                            ),
+                        ],
                       ),
                       if (_type == TransactionType.expense) ...[
                         const SizedBox(height: 8),
@@ -600,8 +710,16 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                               : context
                                     .read<FinanceController>()
                                     .budgetProgress(matchingBudget),
+                          amountMinor: selectedAccount == null
+                              ? null
+                              : _previewAmount(
+                                  _amount.text,
+                                  selectedAccount.currencyCode,
+                                ),
                         ),
                       ],
+                      const SizedBox(height: 11),
+                      walletField,
                     ],
                     const SizedBox(height: 11),
                     DropdownButtonFormField<String>(
@@ -736,6 +854,53 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     );
   }
 
+  Future<void> _addCategory(BuildContext context, String type) async {
+    final finance = context.read<FinanceController>();
+    final id = await showCategoryEditor(context, initialType: type);
+    if (id == null || !context.mounted || !mounted) return;
+    final category = finance.categories
+        .where((item) => item['id'] == id)
+        .firstOrNull;
+    if (category == null) return;
+    setState(() {
+      _categoryId = id;
+      _category = category['name']! as String;
+    });
+  }
+
+  Future<void> _addWallet(BuildContext context) async {
+    final finance = context.read<FinanceController>();
+    final account = await showWalletEditor(context);
+    if (account == null || !context.mounted || !mounted) return;
+    setState(() {
+      _accountId = account.id;
+      if (_type == TransactionType.transfer &&
+          _destinationAccountId == account.id) {
+        _destinationAccountId = finance.activeAccounts
+            .where((item) => item.id != account.id)
+            .firstOrNull
+            ?.id;
+      }
+    });
+  }
+
+  Future<void> _editCategory(
+    BuildContext context,
+    Map<String, Object?> category,
+  ) async {
+    final finance = context.read<FinanceController>();
+    final id = await showCategoryEditor(context, existing: category);
+    if (id == null || !context.mounted || !mounted) return;
+    final updated = finance.categories
+        .where((item) => item['id'] == id)
+        .firstOrNull;
+    if (updated == null) return;
+    setState(() {
+      _categoryId = id;
+      _category = updated['name']! as String;
+    });
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -856,6 +1021,7 @@ FinancialBudget? _matchingBudget(
   required String currencyCode,
   required String accountId,
   required String category,
+  required String? categoryId,
   required DateTime date,
 }) {
   final matching =
@@ -875,6 +1041,7 @@ FinancialBudget? _matchingBudget(
             !date.isAfter(budgetEnd) &&
             (budget.accountId == null || budget.accountId == accountId) &&
             (budget.categoryIds.isEmpty ||
+                budget.categoryIds.contains(categoryId ?? category) ||
                 budget.categoryIds.contains(category));
       }).toList()..sort((left, right) {
         final leftPriority =
@@ -894,15 +1061,28 @@ FinancialBudget? _matchingBudget(
 }
 
 class _BudgetLinkPreview extends StatelessWidget {
-  const _BudgetLinkPreview({required this.budget, required this.progress});
+  const _BudgetLinkPreview({
+    required this.budget,
+    required this.progress,
+    required this.amountMinor,
+  });
 
   final FinancialBudget? budget;
   final BudgetProgress? progress;
+  final int? amountMinor;
 
   @override
   Widget build(BuildContext context) {
     final budget = this.budget;
     final progress = this.progress;
+    final projectedSpent = progress == null
+        ? null
+        : progress.spentMinor + (amountMinor ?? 0);
+    final projectedPercent = projectedSpent == null || budget == null
+        ? null
+        : budget.limitMinor <= 0
+        ? 0.0
+        : projectedSpent * 100 / budget.limitMinor;
     return GlassContainer(
       padding: const EdgeInsets.all(11),
       radius: 14,
@@ -931,11 +1111,23 @@ class _BudgetLinkPreview extends StatelessWidget {
                 Text(
                   budget == null
                       ? 'This expense will save normally without a budget.'
-                      : '${progress!.usagePercent}% used · '
+                      : '${progress!.usageLabel} used · '
                             '${formatMinorUnits(progress.spentMinor, budget.currencyCode)} spent · '
                             '${formatMinorUnits(progress.remainingMinor, budget.currencyCode)} left',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                if (budget != null &&
+                    progress != null &&
+                    amountMinor != null &&
+                    amountMinor! > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'After this expense: ${_formatPercent(projectedPercent!)} used · '
+                    '${formatMinorUnits(projectedSpent!, budget.currencyCode)} spent · '
+                    '${formatMinorUnits(budget.limitMinor - projectedSpent, budget.currencyCode)} left',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ],
             ),
           ),
@@ -943,6 +1135,62 @@ class _BudgetLinkPreview extends StatelessWidget {
       ),
     );
   }
+}
+
+class _WalletBalancePreview extends StatelessWidget {
+  const _WalletBalancePreview({
+    required this.account,
+    required this.availableMinor,
+    required this.transactionType,
+    required this.amountMinor,
+  });
+
+  final FinancialAccount account;
+  final int availableMinor;
+  final TransactionType transactionType;
+  final int? amountMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    final balanceAfter = amountMinor == null
+        ? null
+        : transactionType == TransactionType.income
+        ? availableMinor + amountMinor!
+        : availableMinor - amountMinor!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Available: ${formatMinorUnits(availableMinor, account.currencyCode)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          if (balanceAfter != null)
+            Text(
+              'After: ${formatMinorUnits(balanceAfter, account.currencyCode)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+int? _previewAmount(String input, String currency) {
+  try {
+    return parseMinorUnits(input, currency);
+  } on FormatException {
+    return null;
+  }
+}
+
+String _formatPercent(double value) {
+  final formatted = value.toStringAsFixed(1);
+  return formatted.endsWith('.0')
+      ? formatted.substring(0, formatted.length - 2)
+      : formatted;
 }
 
 String _moneyInput(int minor, String currency) {

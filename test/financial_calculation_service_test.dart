@@ -188,6 +188,35 @@ void main() {
       expect(progress.remainingMinor, -20000);
       expect(progress.usagePercent, 120);
     });
+
+    test('matches category IDs when category display names change', () {
+      final linkedBudget = FinancialBudget(
+        id: 'accommodation-budget',
+        userId: 'user-1',
+        name: 'Accommodation',
+        limitMinor: 300000,
+        currencyCode: 'UGX',
+        startDate: DateTime(2025, 1),
+        endDate: DateTime(2025, 1, 31, 23, 59, 59),
+        categoryIds: const ['category-accommodation'],
+      );
+      final progress = calculations.budgetProgress(
+        budget: linkedBudget,
+        transactions: [
+          _transaction(
+            id: 'rent',
+            type: TransactionType.expense,
+            amount: 100000,
+            category: 'Housing renamed',
+          ).copyWith(categoryId: 'category-accommodation'),
+        ],
+      );
+
+      expect(progress.spentMinor, 100000);
+      expect(progress.remainingMinor, 200000);
+      expect(progress.exactUsagePercent, closeTo(33.333, 0.001));
+      expect(progress.usageLabel, '33.3%');
+    });
   });
 
   test('savings withdrawals reduce only their own goal total', () {
