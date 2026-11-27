@@ -77,7 +77,7 @@ class AppTheme {
         ),
         bodySmall: TextStyle(
           color: muted,
-          fontSize: 11,
+          fontSize: 12,
           height: 1.4,
           fontWeight: FontWeight.w400,
         ),
@@ -90,7 +90,7 @@ class AppTheme {
         // Supporting labels (Inter Medium 500)
         labelMedium: TextStyle(
           color: muted,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
       ),

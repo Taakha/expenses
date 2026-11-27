@@ -18,7 +18,7 @@ class AppColors {
   static const lightText = Color(0xFF64748B);
   static const lightTextStrong = Color(0xFF1F2937);
   static const darkText = Color(0xFFF4F8F7);
-  static const darkMuted = Color(0xFF64748B);
+  static const darkMuted = Color(0xFFB8C5C9);
   static const lightCanvas = Color(0xFFF4F8F7);
   static const darkCanvas = Color(0xFF101C20);
   static const lightCard = Color(0xFFFFFFFF);
