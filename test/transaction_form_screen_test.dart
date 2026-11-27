@@ -45,7 +45,7 @@ void main() {
     await tester.ensureVisible(find.text('Save expense'));
     await tester.tap(find.text('Save expense'));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('No matching budget'), findsOneWidget);
+    expect(find.text('No matching budget'), findsNWidgets(2));
     await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
 
@@ -57,6 +57,44 @@ void main() {
     expect(saved.accountId, 'cash');
     expect(saved.category, 'Food');
     expect(saved.description, 'Groceries');
+  });
+
+  testWidgets('shows the budget matching the selected expense category', (
+    tester,
+  ) async {
+    _configureTestViewport(tester);
+    final budget = FinancialBudget(
+      id: 'accommodation-budget',
+      userId: 'user-1',
+      name: 'Accommodation',
+      limitMinor: 500000,
+      currencyCode: 'UGX',
+      startDate: DateTime(DateTime.now().year, DateTime.now().month),
+      endDate: DateTime(DateTime.now().year, DateTime.now().month + 1, 0),
+      categoryIds: const ['Accommodation'],
+    );
+    final finance = _FakeFinanceController(
+      [_cashAccount()],
+      testBudgets: [budget],
+      testProgress: {
+        budget.id: const BudgetProgress(
+          spentMinor: 300000,
+          remainingMinor: 200000,
+          usagePercent: 60,
+        ),
+      },
+    );
+    await tester.pumpWidget(_app(finance));
+    await tester.tap(find.text('Open expense form'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Food').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Accommodation').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Linked budget: Accommodation'), findsOneWidget);
+    expect(find.textContaining('60% used'), findsOneWidget);
   });
 
   testWidgets('editing preserves the transaction ID and updates its amount', (
@@ -146,7 +184,11 @@ FinancialAccount _cashAccount() => const FinancialAccount(
 );
 
 class _FakeFinanceController extends Fake implements FinanceController {
-  _FakeFinanceController(this.accounts);
+  _FakeFinanceController(
+    this.accounts, {
+    this.testBudgets = const [],
+    this.testProgress = const {},
+  });
 
   @override
   void addListener(VoidCallback listener) {}
@@ -188,11 +230,16 @@ class _FakeFinanceController extends Fake implements FinanceController {
   @override
   List<FinancialAccount> get activeAccounts => accounts;
 
+  final List<FinancialBudget> testBudgets;
+
+  final Map<String, BudgetProgress> testProgress;
+
   @override
-  List<FinancialBudget> get budgets => const [];
+  List<FinancialBudget> get budgets => testBudgets;
 
   @override
   BudgetProgress budgetProgress(FinancialBudget budget) =>
+      testProgress[budget.id] ??
       const BudgetProgress(spentMinor: 0, remainingMinor: 0, usagePercent: 0);
 
   @override

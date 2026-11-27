@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/services/finance_controller.dart';
+import '../../core/services/financial_calculation_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/money.dart';
 import '../../core/utils/validators.dart';
@@ -312,41 +313,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     FinanceController finance,
     FinancialTransaction transaction,
   ) async {
-      final matchingBudgets = finance.budgets.where((budget) {
-        final endOfDay = DateTime(
-          budget.endDate.year,
-          budget.endDate.month,
-          budget.endDate.day,
-          23,
-          59,
-          59,
-          999,
-        );
-        return !budget.isArchived &&
-            budget.currencyCode == transaction.currencyCode &&
-            !transaction.occurredAt.isBefore(budget.startDate) &&
-            !transaction.occurredAt.isAfter(endOfDay) &&
-            (budget.accountId == null ||
-                budget.accountId == transaction.accountId) &&
-            (budget.categoryIds.isEmpty ||
-                budget.categoryIds.contains(transaction.category));
-      }).toList()
-        ..sort((left, right) {
-          final leftPriority =
-              (left.accountId == null ? 0 : 2) +
-              (left.categoryIds.isEmpty ? 0 : 1);
-          final rightPriority =
-              (right.accountId == null ? 0 : 2) +
-              (right.categoryIds.isEmpty ? 0 : 1);
-          final priorityOrder = rightPriority.compareTo(leftPriority);
-          if (priorityOrder != 0) return priorityOrder;
-          final dateOrder = (left.createdAt ?? DateTime(1970)).compareTo(
-            right.createdAt ?? DateTime(1970),
-          );
-          return dateOrder != 0 ? dateOrder : left.id.compareTo(right.id);
-        });
-
-    final budget = matchingBudgets.firstOrNull;
+    final budget = _matchingBudget(
+      finance.budgets,
+      currencyCode: transaction.currencyCode,
+      accountId: transaction.accountId,
+      category: transaction.category,
+      date: transaction.occurredAt,
+    );
     var title = 'No matching budget';
     var message =
         'This expense was saved. Create a ${transaction.category} budget to track future spending.';
@@ -392,6 +365,16 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         .toList();
     final selectedAccount = _findAccount(accounts, _accountId);
     final selectedDestination = _findAccount(accounts, _destinationAccountId);
+    final matchingBudget =
+        _type == TransactionType.expense && selectedAccount != null
+        ? _matchingBudget(
+            context.read<FinanceController>().budgets,
+            currencyCode: selectedAccount.currencyCode,
+            accountId: selectedAccount.id,
+            category: _category ?? 'Other',
+            date: _date,
+          )
+        : null;
     final isIncome = _type == TransactionType.income;
     final categories = (snapshot?.categories ?? const <Map<String, Object?>>[])
         .where(
@@ -608,6 +591,17 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                             .toList(),
                         onChanged: (value) => setState(() => _category = value),
                       ),
+                      if (_type == TransactionType.expense) ...[
+                        const SizedBox(height: 8),
+                        _BudgetLinkPreview(
+                          budget: matchingBudget,
+                          progress: matchingBudget == null
+                              ? null
+                              : context
+                                    .read<FinanceController>()
+                                    .budgetProgress(matchingBudget),
+                        ),
+                      ],
                     ],
                     const SizedBox(height: 11),
                     DropdownButtonFormField<String>(
@@ -855,6 +849,100 @@ FinancialAccount? _findAccount(List<FinancialAccount> accounts, String? id) {
     if (account.id == id) return account;
   }
   return null;
+}
+
+FinancialBudget? _matchingBudget(
+  List<FinancialBudget> budgets, {
+  required String currencyCode,
+  required String accountId,
+  required String category,
+  required DateTime date,
+}) {
+  final matching =
+      budgets.where((budget) {
+        final budgetEnd = DateTime(
+          budget.endDate.year,
+          budget.endDate.month,
+          budget.endDate.day,
+          23,
+          59,
+          59,
+          999,
+        );
+        return !budget.isArchived &&
+            budget.currencyCode == currencyCode &&
+            !date.isBefore(budget.startDate) &&
+            !date.isAfter(budgetEnd) &&
+            (budget.accountId == null || budget.accountId == accountId) &&
+            (budget.categoryIds.isEmpty ||
+                budget.categoryIds.contains(category));
+      }).toList()..sort((left, right) {
+        final leftPriority =
+            (left.accountId == null ? 0 : 2) +
+            (left.categoryIds.isEmpty ? 0 : 1);
+        final rightPriority =
+            (right.accountId == null ? 0 : 2) +
+            (right.categoryIds.isEmpty ? 0 : 1);
+        final priorityOrder = rightPriority.compareTo(leftPriority);
+        if (priorityOrder != 0) return priorityOrder;
+        final dateOrder = (left.createdAt ?? DateTime(1970)).compareTo(
+          right.createdAt ?? DateTime(1970),
+        );
+        return dateOrder != 0 ? dateOrder : left.id.compareTo(right.id);
+      });
+  return matching.firstOrNull;
+}
+
+class _BudgetLinkPreview extends StatelessWidget {
+  const _BudgetLinkPreview({required this.budget, required this.progress});
+
+  final FinancialBudget? budget;
+  final BudgetProgress? progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final budget = this.budget;
+    final progress = this.progress;
+    return GlassContainer(
+      padding: const EdgeInsets.all(11),
+      radius: 14,
+      blur: 5,
+      child: Row(
+        children: [
+          Icon(
+            budget == null
+                ? Icons.info_outline_rounded
+                : Icons.pie_chart_outline_rounded,
+            color: AppColors.tealDark,
+            size: 19,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  budget == null
+                      ? 'No matching budget'
+                      : 'Linked budget: ${budget.name}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  budget == null
+                      ? 'This expense will save normally without a budget.'
+                      : '${progress!.usagePercent}% used · '
+                            '${formatMinorUnits(progress.spentMinor, budget.currencyCode)} spent · '
+                            '${formatMinorUnits(progress.remainingMinor, budget.currencyCode)} left',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 String _moneyInput(int minor, String currency) {
