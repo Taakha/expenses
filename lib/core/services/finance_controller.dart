@@ -24,6 +24,9 @@ class FinanceController extends ChangeNotifier {
   final Connectivity _connectivity;
   final FinancialCalculationService _calculations;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Future<void>? _syncTask;
+  bool _syncRequested = false;
+  bool _remotePullRequested = false;
 
   String? userId;
   String preferredCurrency = 'UGX';
@@ -225,12 +228,12 @@ class FinanceController extends ChangeNotifier {
         lastError = error.message;
       }
       await refresh();
-      await syncNow();
+      _scheduleSync(pullRemote: true);
       _connectivitySubscription ??= _connectivity.onConnectivityChanged.listen((
         results,
       ) {
         if (results.any((result) => result != ConnectivityResult.none)) {
-          unawaited(syncNow());
+          _scheduleSync(pullRemote: true);
         }
       });
     } catch (error) {
@@ -251,15 +254,56 @@ class FinanceController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> syncNow() async {
+  Future<void> syncNow({bool pullRemote = true}) async {
     final uid = userId;
     if (uid == null) return;
-    await _syncService.synchronize(uid);
-    syncState = _syncService.state;
-    syncError = _syncService.lastError;
-    pendingSyncCount = _syncService.pendingCount;
-    conflicts = await _repository.syncConflicts(uid);
-    await refresh();
+    _syncRequested = true;
+    _remotePullRequested = _remotePullRequested || pullRemote;
+    final running = _syncTask;
+    if (running != null) {
+      await running;
+      return;
+    }
+
+    final task = _drainSyncRequests(uid);
+    _syncTask = task;
+    try {
+      await task;
+    } finally {
+      if (identical(_syncTask, task)) _syncTask = null;
+    }
+  }
+
+  Future<void> _drainSyncRequests(String uid) async {
+    do {
+      _syncRequested = false;
+      final shouldPullRemote = _remotePullRequested;
+      _remotePullRequested = false;
+      await _syncService.synchronize(uid, pullRemote: shouldPullRemote);
+      syncState = _syncService.state;
+      syncError = _syncService.lastError;
+      pendingSyncCount = _syncService.pendingCount;
+      conflicts = await _repository.syncConflicts(uid);
+      if (shouldPullRemote) {
+        await refresh();
+      } else {
+        notifyListeners();
+      }
+    } while (_syncRequested);
+  }
+
+  void _scheduleSync({bool pullRemote = false}) {
+    unawaited(_syncInBackground(pullRemote: pullRemote));
+  }
+
+  Future<void> _syncInBackground({required bool pullRemote}) async {
+    try {
+      await syncNow(pullRemote: pullRemote);
+    } on Object catch (error) {
+      syncState = SyncState.needsAttention;
+      syncError = error.toString();
+      notifyListeners();
+    }
   }
 
   Future<void> saveAccount(FinancialAccount account) =>
@@ -275,7 +319,7 @@ class FinanceController extends ChangeNotifier {
     await _run(
       () => _repository.saveTransaction(transaction, receipts: receipts),
     );
-    await _createBudgetAlerts();
+    unawaited(_createBudgetAlertsInBackground());
   }
 
   Future<List<ReceiptAttachment>> loadTransactionReceipts(
@@ -371,7 +415,7 @@ class FinanceController extends ChangeNotifier {
     await _repository.setPreferredCurrency(_requireUid(), code);
     preferredCurrency = code;
     notifyListeners();
-    await syncNow();
+    _scheduleSync();
   }
 
   Future<void> resolveConflict({
@@ -384,7 +428,8 @@ class FinanceController extends ChangeNotifier {
       recordId: conflict['record_id']! as String,
       keepLocal: keepLocal,
     );
-    await syncNow();
+    await refresh();
+    _scheduleSync();
   }
 
   Future<void> keepBothTransactionConflict({
@@ -400,7 +445,8 @@ class FinanceController extends ChangeNotifier {
       uid: _requireUid(),
       recordId: conflict['record_id']! as String,
     );
-    await syncNow();
+    await refresh();
+    _scheduleSync();
   }
 
   Future<void> _run(Future<void> Function() action) async {
@@ -408,7 +454,7 @@ class FinanceController extends ChangeNotifier {
     try {
       await action();
       await refresh();
-      await syncNow();
+      _scheduleSync();
     } catch (error) {
       lastError = error.toString();
       notifyListeners();
@@ -416,9 +462,19 @@ class FinanceController extends ChangeNotifier {
     }
   }
 
+  Future<void> _createBudgetAlertsInBackground() async {
+    try {
+      await _createBudgetAlerts();
+    } on Object catch (error) {
+      lastError = error.toString();
+      notifyListeners();
+    }
+  }
+
   Future<void> _createBudgetAlerts() async {
     final uid = userId;
     if (uid == null) return;
+    var changed = false;
     for (final budget in budgets) {
       final progress = budgetProgress(budget);
       final threshold = progress.usagePercent >= 100
@@ -441,9 +497,12 @@ class FinanceController extends ChangeNotifier {
           createdAt: DateTime.now(),
         ),
       );
+      changed = true;
     }
-    await refresh();
-    await syncNow();
+    if (changed) {
+      await refresh();
+      _scheduleSync();
+    }
   }
 
   String _requireUid() {

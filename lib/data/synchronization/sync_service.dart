@@ -28,7 +28,7 @@ class SyncService {
     return results.any((result) => result != ConnectivityResult.none);
   }
 
-  Future<void> synchronize(String uid) async {
+  Future<void> synchronize(String uid, {bool pullRemote = true}) async {
     if (!await hasConnection()) {
       state = SyncState.offline;
       pendingCount = await _repository.pendingSyncCount(uid);
@@ -92,7 +92,7 @@ class SyncService {
       }
     }
 
-    await _pullRemote(uid);
+    if (pullRemote) await _pullRemote(uid);
     pendingCount = await _repository.pendingSyncCount(uid);
     final conflicts = await _repository.syncConflicts(uid);
     if (conflicts.isNotEmpty && lastError == null) {
