@@ -263,7 +263,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     const Icon(AppIcons.cashFlow, color: AppColors.tealDark),
                     const SizedBox(width: 9),
-                    Expanded(
+                    Flexible(
+                      fit: FlexFit.loose,
                       child: Text(
                         'Net cash flow · ${income - expenses < 0 ? 'negative' : 'positive'}',
                         style: Theme.of(context).textTheme.titleMedium,
@@ -290,7 +291,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     const Icon(AppIcons.savingsGoal, color: AppColors.tealDark),
                     const SizedBox(width: 9),
-                    Expanded(
+                    Flexible(
+                      fit: FlexFit.loose,
                       child: Text(
                         'Savings goals',
                         style: Theme.of(context).textTheme.titleMedium,
@@ -325,7 +327,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     const Icon(AppIcons.savingsGoal, color: AppColors.tealDark),
                     const SizedBox(width: 9),
-                    Expanded(
+                    Flexible(
+                      fit: FlexFit.loose,
                       child: Text(
                         'Current account balance',
                         style: Theme.of(context).textTheme.titleMedium,
