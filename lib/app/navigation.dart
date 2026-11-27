@@ -50,7 +50,7 @@ class _NavigationShellState extends State<NavigationShell> {
           NavigationDestination(
             icon: Icon(AppIcons.activity),
             selectedIcon: Icon(AppIcons.activityFill),
-            label: 'Activity',
+            label: 'Transactions',
           ),
           NavigationDestination(
             icon: Icon(AppIcons.budgets),
