@@ -6,23 +6,23 @@ class AppTheme {
   const AppTheme._();
 
   static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark()  => _build(Brightness.dark);
+  static ThemeData dark() => _build(Brightness.dark);
 
   static ThemeData _build(Brightness brightness) {
-    final isDark   = brightness == Brightness.dark;
-    final fg       = isDark ? AppColors.darkText        : AppColors.lightTextStrong;
-    final muted    = isDark ? AppColors.darkMuted        : AppColors.lightText;
-    final surface  = isDark ? const Color(0xFF13383B)   : Colors.white;
-    final outline  = isDark
+    final isDark = brightness == Brightness.dark;
+    final fg = isDark ? AppColors.darkText : AppColors.lightTextStrong;
+    final muted = isDark ? AppColors.darkMuted : AppColors.lightText;
+    final surface = isDark ? AppColors.darkCard : AppColors.lightCard;
+    final outline = isDark
         ? Colors.white.withValues(alpha: 0.13)
         : AppColors.teal.withValues(alpha: 0.12);
 
     final scheme = ColorScheme.fromSeed(
       seedColor: AppColors.teal,
       brightness: brightness,
-      primary:   isDark ? AppColors.aqua    : AppColors.tealDark,
-      surface:   surface,
-      error:     AppColors.expense,
+      primary: isDark ? AppColors.aqua : AppColors.tealDark,
+      surface: surface,
+      error: AppColors.expense,
     );
 
     return ThemeData(
@@ -30,43 +30,68 @@ class AppTheme {
       brightness: brightness,
       colorScheme: scheme,
       fontFamily: 'Inter',
-      scaffoldBackgroundColor: isDark ? AppColors.darkCanvas : AppColors.lightCanvas,
+      scaffoldBackgroundColor: isDark
+          ? AppColors.darkCanvas
+          : AppColors.lightCanvas,
 
       // ── Text ────────────────────────────────────────────────────────────────
       textTheme: TextTheme(
         // Headings (Inter SemiBold 600)
         displaySmall: TextStyle(
-          color: fg, fontSize: 28, height: 1.08,
-          fontWeight: FontWeight.w600, letterSpacing: -0.6,
+          color: fg,
+          fontSize: 28,
+          height: 1.08,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.6,
         ),
         headlineMedium: TextStyle(
-          color: fg, fontSize: 22, height: 1.12,
-          fontWeight: FontWeight.w600, letterSpacing: -0.4,
+          color: fg,
+          fontSize: 22,
+          height: 1.12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.4,
         ),
         // Card titles (Inter SemiBold 600)
         titleLarge: TextStyle(
-          color: fg, fontSize: 17, fontWeight: FontWeight.w600,
+          color: fg,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
         ),
         titleMedium: TextStyle(
-          color: fg, fontSize: 14, fontWeight: FontWeight.w600,
+          color: fg,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
         ),
         // Financial amounts (Inter Bold 700) — applied directly where needed
         bodyLarge: TextStyle(
-          color: fg,    fontSize: 14, height: 1.45, fontWeight: FontWeight.w400,
+          color: fg,
+          fontSize: 14,
+          height: 1.45,
+          fontWeight: FontWeight.w400,
         ),
         bodyMedium: TextStyle(
-          color: muted, fontSize: 13, height: 1.45, fontWeight: FontWeight.w400,
+          color: muted,
+          fontSize: 13,
+          height: 1.45,
+          fontWeight: FontWeight.w400,
         ),
         bodySmall: TextStyle(
-          color: muted, fontSize: 11, height: 1.4,  fontWeight: FontWeight.w400,
+          color: muted,
+          fontSize: 11,
+          height: 1.4,
+          fontWeight: FontWeight.w400,
         ),
         // Buttons / labels (Inter SemiBold 600)
         labelLarge: TextStyle(
-          color: fg, fontSize: 13, fontWeight: FontWeight.w600,
+          color: fg,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
         ),
         // Supporting labels (Inter Medium 500)
         labelMedium: TextStyle(
-          color: muted, fontSize: 11, fontWeight: FontWeight.w500,
+          color: muted,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
         ),
       ),
 
@@ -74,11 +99,16 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: isDark
-            ? const Color(0xFF0B2B2F)
+            ? AppColors.darkCard
             : Colors.white.withValues(alpha: 0.93),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 15,
+          vertical: 13,
+        ),
         labelStyle: TextStyle(
-          color: muted, fontSize: 13, fontWeight: FontWeight.w500,
+          color: muted,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
           fontFamily: 'Inter',
         ),
         prefixIconColor: isDark ? AppColors.aqua : AppColors.tealDark,
@@ -111,9 +141,13 @@ class AppTheme {
           backgroundColor: isDark ? AppColors.teal : AppColors.tealDark,
           foregroundColor: Colors.white,
           textStyle: const TextStyle(
-            fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 14,
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -121,17 +155,23 @@ class AppTheme {
           minimumSize: const Size(0, 44),
           foregroundColor: scheme.primary,
           textStyle: const TextStyle(
-            fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13,
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
           ),
           side: BorderSide(color: scheme.primary.withValues(alpha: 0.4)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: scheme.primary,
           textStyle: const TextStyle(
-            fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13,
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
           ),
         ),
       ),
@@ -159,20 +199,24 @@ class AppTheme {
             fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w600
                 : FontWeight.w500,
-            color: states.contains(WidgetState.selected) ? scheme.primary : muted,
+            color: states.contains(WidgetState.selected)
+                ? scheme.primary
+                : muted,
           ),
         ),
       ),
 
       // ── Misc ────────────────────────────────────────────────────────────────
-      dividerTheme:  DividerThemeData(color: outline, thickness: 1, space: 1),
+      dividerTheme: DividerThemeData(color: outline, thickness: 1, space: 1),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       chipTheme: ChipThemeData(
         labelStyle: const TextStyle(
-          fontFamily: 'Inter', fontWeight: FontWeight.w500, fontSize: 12,
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),

@@ -150,9 +150,7 @@ class _GoalCard extends StatelessWidget {
                   width: 47,
                   height: 47,
                   decoration: BoxDecoration(
-                    color: completed
-                        ? const Color(0xFF14977D)
-                        : const Color(0xFF2DBEAA),
+                    color: completed ? AppColors.tealDark : AppColors.accent,
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: Icon(

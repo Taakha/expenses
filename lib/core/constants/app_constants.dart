@@ -6,8 +6,8 @@ import '../theme/app_colors.dart';
 class AppConstants {
   const AppConstants._();
 
-  static const appName         = 'Money Wise';
-  static const tagline         = 'Take Control of Your Money';
+  static const appName = 'Money Wise';
+  static const tagline = 'Take Control of Your Money';
   static const defaultCurrency = 'UGX';
 
   static const supportedCurrencies = <String, String>{
@@ -67,25 +67,28 @@ class CategoryStyle {
   const CategoryStyle(this.icon, this.color);
 
   final IconData icon;
-  final Color    color;
+  final Color color;
 
   static CategoryStyle forName(String name, {bool income = false}) {
     final icon = AppIcons.forCategory(name, income: income);
     final color = switch (name.toLowerCase()) {
-      'salary' || 'allowance' || 'allowances' || 'business' || 'freelance'
-                              => const Color(0xFF31C99A),
-      'scholarship'           => const Color(0xFF48C6D9),
-      'gift'                  => const Color(0xFFF579B9),
-      'food' || 'groceries'   => const Color(0xFFFFB85C),
-      'accommodation' || 'rent' => const Color(0xFF9B8AFB),
-      'transport'             => const Color(0xFF62B5F8),
-      'education'             => const Color(0xFF48C6D9),
-      'communication'         => const Color(0xFF71A7FF),
-      'shopping'              => const Color(0xFFF579B9),
-      'health' || 'personal care' => const Color(0xFFF17E83),
-      'entertainment'         => const Color(0xFFBB8AF5),
-      'bills'                 => const Color(0xFFF89D6B),
-      _                       => AppColors.teal,
+      'salary' ||
+      'allowance' ||
+      'allowances' ||
+      'business' ||
+      'freelance' => AppColors.income,
+      'scholarship' => AppColors.accent,
+      'gift' => AppColors.tealDark,
+      'food' || 'groceries' => AppColors.amber,
+      'accommodation' || 'rent' => AppColors.tealDark,
+      'transport' => AppColors.teal,
+      'education' => AppColors.accent,
+      'communication' => AppColors.tealDark,
+      'shopping' => AppColors.expense,
+      'health' || 'personal care' => AppColors.expense,
+      'entertainment' => AppColors.accent,
+      'bills' => AppColors.amber,
+      _ => AppColors.teal,
     };
     return CategoryStyle(icon, color);
   }

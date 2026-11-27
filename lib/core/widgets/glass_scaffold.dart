@@ -41,14 +41,14 @@ class GlassScaffold extends StatelessWidget {
             const Positioned(
               top: -72,
               right: -60,
-              child: _AmbientGlow(size: 210, color: Color(0xFF42D4BD)),
+              child: _AmbientGlow(size: 210, color: AppColors.accent),
             ),
             Positioned(
               bottom: -96,
               left: -72,
               child: _AmbientGlow(
                 size: 240,
-                color: dark ? const Color(0xFF287C96) : const Color(0xFF95B8F4),
+                color: dark ? AppColors.tealDark : AppColors.teal,
               ),
             ),
             safeArea

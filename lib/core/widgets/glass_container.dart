@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 class GlassContainer extends StatelessWidget {
   const GlassContainer({
     required this.child,
@@ -25,7 +27,7 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final fill = (dark ? const Color(0xFF173B40) : Colors.white).withValues(
+    final fill = (dark ? AppColors.darkCard : AppColors.lightCard).withValues(
       alpha: opacity ?? (dark ? 0.68 : 0.66),
     );
     return Container(
@@ -34,7 +36,7 @@ class GlassContainer extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: (dark ? Colors.black : const Color(0xFF1E7970)).withValues(
+            color: (dark ? Colors.black : AppColors.tealDark).withValues(
               alpha: dark ? 0.17 : 0.08,
             ),
             blurRadius: 24,

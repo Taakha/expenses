@@ -115,9 +115,9 @@ class _BudgetSummary extends StatelessWidget {
       blur: 7,
       child: Row(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 19,
-            backgroundColor: Color(0x1F0BA98D),
+            backgroundColor: AppColors.teal.withValues(alpha: 0.12),
             child: Icon(
               Icons.pie_chart_outline_rounded,
               color: AppColors.tealDark,

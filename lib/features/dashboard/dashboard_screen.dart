@@ -171,10 +171,7 @@ class DashboardScreen extends StatelessWidget {
             ),
           ],
         ),
-        _MonthlyChart(
-          finance: finance,
-          currency: currency,
-        ),
+        _MonthlyChart(finance: finance, currency: currency),
         const SizedBox(height: 17),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -234,13 +231,12 @@ class DashboardScreen extends StatelessWidget {
             ),
           )
         else
-          ...finance.recentTransactions
-              .map(
-                (transaction) => TransactionTile(
-                  transaction: transaction,
-                  accountName: accountNames[transaction.accountId],
-                ),
-              ),
+          ...finance.recentTransactions.map(
+            (transaction) => TransactionTile(
+              transaction: transaction,
+              accountName: accountNames[transaction.accountId],
+            ),
+          ),
         if (finance.syncError != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -318,7 +314,7 @@ class _BalanceSummary extends StatelessWidget {
                   amount: income,
                   currency: currency,
                   icon: Icons.south_west_rounded,
-                  color: const Color(0xFF75E8C4),
+                  color: AppColors.accent,
                 ),
               ),
               const SizedBox(width: 9),
@@ -328,7 +324,7 @@ class _BalanceSummary extends StatelessWidget {
                   amount: expenses,
                   currency: currency,
                   icon: Icons.north_east_rounded,
-                  color: const Color(0xFFFF9B98),
+                  color: AppColors.expense,
                 ),
               ),
             ],
@@ -439,10 +435,7 @@ class _QuickAction extends StatelessWidget {
 }
 
 class _MonthlyChart extends StatelessWidget {
-  const _MonthlyChart({
-    required this.finance,
-    required this.currency,
-  });
+  const _MonthlyChart({required this.finance, required this.currency});
 
   final FinanceController finance;
   final String currency;

@@ -925,10 +925,10 @@ class _CategoryReport extends StatelessWidget {
     AppColors.income,
     AppColors.expense,
     AppColors.amber,
-    Color(0xFF6377D8),
-    Color(0xFFAA68C7),
-    Color(0xFF4F9B8A),
-    Color(0xFFCC765B),
+    AppColors.teal,
+    AppColors.accent,
+    AppColors.tealDark,
+    AppColors.amber,
   ];
 
   @override
